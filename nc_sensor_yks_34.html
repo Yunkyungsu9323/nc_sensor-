@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NC Sensor Analyzer · Ulsan Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #f4f6fb;
+  --bg-white:  #ffffff;
+  --bg-light:  #f8faff;
+  --border:    #e2e8f0;
+  --border-md: #cbd5e1;
+  --primary:   #3b5bdb;
+  --primary-lt:#eff3ff;
+  --primary-dk:#2f4ac4;
+  --green:     #12b886;
+  --green-lt:  #e6fcf5;
+  --amber:     #f59f00;
+  --amber-lt:  #fff9db;
+  --purple:    #7950f2;
+  --purple-lt: #f3f0ff;
+  --red:       #fa5252;
+  --red-lt:    #fff5f5;
+  --text:      #1e293b;
+  --text-md:   #475569;
+  --text-sm:   #94a3b8;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow:    0 4px 16px rgba(0,0,0,0.07);
+  --shadow-md: 0 8px 30px rgba(0,0,0,0.10);
+  --radius:    10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 13px;
+}
+
+/* SIDEBAR */
+#sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 200px;
+  background: var(--bg-white); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 100; box-shadow: var(--shadow-sm);
+}
+.sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
+.sidebar-logo h1 {
+  font-size: 14px; font-weight: 700; color: var(--primary);
+  display: flex; align-items: center; gap: 7px;
+}
+.sidebar-logo span { font-size: 11px; color: var(--text-sm); display: block; margin-top: 3px; }
+.nav-section {
+  padding: 14px 12px 6px; font-size: 10px; font-weight: 700;
+  color: var(--text-sm); text-transform: uppercase; letter-spacing: 0.09em;
+}
+.nav-btn {
+  width: calc(100% - 24px); margin: 2px 12px; padding: 9px 12px;
+  border: none; border-radius: 7px; background: transparent; color: var(--text-md);
+  font-family: inherit; font-size: 12.5px; font-weight: 500; text-align: left;
+  cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s;
+}
+.nav-btn:hover { background: var(--bg); color: var(--text); }
+.nav-btn.active { background: var(--primary-lt); color: var(--primary); font-weight: 600; }
+.nav-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+.nav-btn .dot.g { background: var(--green); }
+.nav-btn .dot.a { background: var(--amber); }
+.sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 8px 12px; }
+.env-section { padding: 14px 16px; border-top: 1px solid var(--border); margin-top: auto; }
+.env-section label { font-size: 11px; font-weight: 600; color: var(--text-md); display: block; margin-bottom: 6px; }
+.env-section input[type="range"] { width: 100%; accent-color: var(--primary); }
+.env-val { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 4px; }
+.env-sub { font-size: 11px; color: var(--text-sm); margin-top: 3px; }
+
+/* MAIN */
+#main { margin-left: 200px; padding: 28px 30px; min-height: 100vh; }
+.results-scroll-wrap { width: calc(100vw - 260px); }
+
+/* PAGE HEADER */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px;
+}
+.page-title { display: flex; align-items: center; gap: 10px; }
+.page-title h2 { font-size: 21px; font-weight: 700; color: var(--text); }
+.page-title .sub { font-size: 13px; color: var(--text-sm); font-weight: 400; margin-top: 2px; }
+.header-selects { display: flex; gap: 10px; align-items: center; }
+
+/* SECTION TITLE */
+.section-title {
+  font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* CARD */
+.card {
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 18px 20px;
+}
+
+/* HUMIDITY BAR */
+.humidity-bar {
+  background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center;
+  gap: 18px; box-shadow: var(--shadow-sm); flex-wrap: wrap;
+}
+.hb-label { font-size: 12px; font-weight: 700; color: var(--text-md); white-space: nowrap; }
+.hb-inline { display: flex; align-items: center; gap: 7px; }
+.hb-inline label { font-size: 11px; font-weight: 600; color: var(--text-sm); white-space: nowrap; text-transform: uppercase; }
+.hb-result {
+  margin-left: auto; background: var(--primary-lt); border-radius: 8px;
+  padding: 8px 18px; text-align: center; min-width: 140px;
+}
+.hb-result .val { font-size: 20px; font-weight: 700; color: var(--primary); line-height: 1; }
+.hb-result .lbl { font-size: 11px; color: var(--text-sm); margin-top: 2px; }
+.hb-result .sub2 { font-size: 11px; color: var(--primary); font-weight: 500; margin-top: 2px; }
+.hb-sep { border-left: 1px solid var(--border); height: 36px; }
+
+/* FORM */
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--text-sm); text-transform: uppercase; letter-spacing: 0.05em; }
+input[type="number"], select, textarea {
+  font-family: 'Inter','Noto Sans KR',sans-serif; font-size: 13px; color: var(--text);
+  background: var(--bg-white); border: 1px solid var(--border-md); border-radius: 7px;
+  padding: 8px 11px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
+}
+input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,91,219,0.08);
+}
+select { cursor: pointer; }
+textarea { resize: vertical; min-height: 90px; font-size: 12px; line-height: 1.6; }
+textarea::placeholder { color: var(--text-sm); }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 15px; border-radius: 7px; border: 1px solid var(--border-md);
+  background: var(--bg-white); color: var(--text-md); font-family: inherit;
+  font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { background: var(--bg); color: var(--text); }
+.btn.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn.btn-primary:hover { background: var(--primary-dk); border-color: var(--primary-dk); color:#fff; }
+.btn.btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+.btn.btn-green:hover { background: #0ca678; color: #fff; }
+.btn.btn-danger { color: var(--red); border-color: #fecaca; }
+.btn.btn-danger:hover { background: var(--red-lt); }
+.btn.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+/* MODE BUTTONS */
+.mode-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.mode-btn {
+  flex: 1; padding: 9px 6px; border-radius: 7px; border: 1.5px solid var(--border-md);
+  background: var(--bg-white); color: var(--text-md); font-family: inherit;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.mode-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-lt); }
+.mode-btn.active-baseline { background: var(--green-lt); border-color: var(--green); color: var(--green); }
+.mode-btn.active-reaction { background: var(--amber-lt); border-color: var(--amber); color: var(--amber); }
+.drift-btn {
+  width: 100%; margin-bottom: 10px; padding: 9px; border-radius: 7px;
+  border: 1.5px solid var(--border-md); background: var(--bg-white); color: var(--text-md);
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.drift-btn.on { background: var(--purple-lt); border-color: var(--purple); color: var(--purple); }
+
+/* METRIC CARDS */
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.metric-card {
+  background: var(--bg-light); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; transition: box-shadow 0.15s;
+}
+.metric-card:hover { box-shadow: var(--shadow); background: var(--bg-white); }
+.mc-label { font-size: 10px; font-weight: 700; color: var(--text-sm); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 5px; }
+.mc-val { font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.mc-sub { font-size: 10px; color: var(--text-sm); margin-top: 3px; }
+.mc-val.blue   { color: var(--primary); }
+.mc-val.green  { color: var(--green); }
+.mc-val.amber  { color: var(--amber); }
+.mc-val.purple { color: var(--purple); }
+
+/* UPLOAD */
+.upload-zone {
+  border: 2px dashed var(--border-md); border-radius: var(--radius);
+  padding: 20px; text-align: center; cursor: pointer; transition: all 0.15s; background: var(--bg-light);
+}
+.upload-zone:hover, .upload-zone.drag-over { border-color: var(--primary); background: var(--primary-lt); }
+.uz-icon { font-size: 26px; margin-bottom: 6px; }
+.uz-text { font-size: 13px; font-weight: 600; color: var(--text-md); }
+.uz-sub  { font-size: 11px; color: var(--text-sm); margin-top: 3px; }
+#file-input { display: none; }
+
+/* SELECTION BADGES */
+.sel-info { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; align-items: center; margin-bottom: 10px; }
+.sel-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.sel-badge.baseline { background: var(--green-lt); color: var(--green); }
+.sel-badge.reaction { background: var(--amber-lt); color: var(--amber); }
+.sel-badge.empty    { color: var(--text-sm); font-weight: 400; font-size: 12px; }
+
+/* TABLE */
+.table-wrap { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: var(--shadow-sm); }
+.results-scroll-wrap {
+  width: 100%; overflow-x: auto;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); background: var(--bg-white);
+}
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.results-table { min-width: 2200px; }
+thead th {
+  background: var(--bg-light); border-bottom: 2px solid var(--border); padding: 8px 10px;
+  text-align: left; font-size: 10.5px; font-weight: 700; color: var(--text-md);
+  text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg-light); }
+tbody td { padding: 7px 10px; color: var(--text); white-space: nowrap; font-size: 11.5px; }
+
+/* TAGS */
+.tag { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.tag-blue   { background: var(--primary-lt); color: var(--primary); }
+.tag-green  { background: var(--green-lt);   color: var(--green); }
+.tag-amber  { background: var(--amber-lt);   color: var(--amber); }
+.tag-purple { background: var(--purple-lt);  color: var(--purple); }
+.tag-gray   { background: #f1f5f9;           color: var(--text-sm); }
+
+/* CHART */
+#plotly-chart { width: 100%; min-height: 580px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+
+/* LAYOUT */
+.two-col { display: grid; grid-template-columns: 230px 1fr; gap: 18px; }
+.left-col { display: flex; flex-direction: column; gap: 14px; }
+
+/* NOTIFICATION */
+#notification {
+  position: fixed; bottom: 20px; right: 24px;
+  background: var(--bg-white); border: 1px solid var(--border); border-left: 4px solid var(--primary);
+  border-radius: 8px; padding: 11px 18px; font-size: 13px; font-weight: 500; color: var(--text);
+  z-index: 999; transform: translateY(70px); opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); box-shadow: var(--shadow-md); max-width: 320px;
+}
+#notification.show   { transform: translateY(0); opacity: 1; }
+#notification.error  { border-left-color: var(--red); }
+#notification.success{ border-left-color: var(--green); }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* STEP GUIDE */
+.step-guide {
+  display: flex; align-items: center; gap: 0; margin-bottom: 14px;
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.step-item {
+  flex: 1; padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  border-right: 1px solid var(--border); position: relative; transition: background 0.2s;
+}
+.step-item:last-child { border-right: none; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--bg);
+  border: 2px solid var(--border-md); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--text-sm); flex-shrink: 0; transition: all 0.2s;
+}
+.step-text { font-size: 12px; font-weight: 500; color: var(--text-sm); line-height: 1.3; }
+.step-text strong { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
+.step-item.done .step-num { background: var(--green); border-color: var(--green); color: #fff; }
+.step-item.done .step-text { color: var(--text-md); }
+.step-item.active .step-num { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 0 0 3px rgba(59,91,219,0.15); }
+.step-item.active { background: var(--primary-lt); }
+.step-item.active .step-text strong { color: var(--primary); }
+
+/* FULL-WIDTH CHART */
+.chart-wrap { margin-bottom: 0; }
+#plotly-chart { width: 100%; min-height: 580px; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; border: 1px solid var(--border); border-bottom: none; }
+
+/* RESULT PANEL - sits directly below chart */
+.reaction-metric-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  margin-bottom: 4px;
+  background: var(--bg-white);
+}
+.reaction-metric-card-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: var(--amber);
+  margin-bottom: 4px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.reaction-metric-card .result-grid {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 0;
+}
+.result-panel {
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  border-top: 2px solid var(--primary-lt);
+  padding: 0; overflow: hidden; box-shadow: var(--shadow-sm);
+  margin-bottom: 12px;
+}
+.result-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 14px; background: var(--bg-light); border-bottom: 1px solid var(--border);
+}
+.result-panel-header span { font-size: 11px; font-weight: 700; color: var(--text-md); }
+.result-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  border-top: none;
+}
+.result-cell {
+  padding: 6px 10px; border-right: 1px solid var(--border);
+  border-top: none; position: relative; transition: background 0.15s;
+}
+.result-cell:last-child { border-right: none; }
+.result-cell:hover { background: var(--bg-light); }
+.rc-label { font-size: 11px; font-weight: 700; color: var(--text-sm); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+.rc-val { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 2px; transition: all 0.3s; }
+.rc-sub { font-size: 10px; color: var(--text-sm); }
+.rc-val.blue   { color: var(--primary); }
+.rc-val.purple { color: var(--purple); }
+.rc-val.amber  { color: var(--amber); }
+.rc-val.green  { color: var(--green); }
+.rc-val.empty  { color: #d1d5db; font-size: 18px; }
+
+/* flash animation when value updates */
+@keyframes flash { 0%{background:rgba(59,91,219,0.12)} 100%{background:transparent} }
+.result-cell.updated { animation: flash 0.6s ease-out; }
+
+/* CONTROLS ROW - horizontal bar above chart */
+.controls-row {
+  display: flex; align-items: stretch; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.ctrl-card {
+  background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 16px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 10px;
+}
+.ctrl-card.grow { flex: 1; }
+
+/* override old two-col */
+.analysis-layout { display: flex; flex-direction: column; gap: 0; }
+
+/* ── TAB SYSTEM ── */
+.tab-bar {
+  display: flex; gap: 0; background: var(--bg-white);
+  border-bottom: 2px solid var(--border); margin-bottom: 24px;
+  border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.tab-btn {
+  flex: 1; padding: 14px 10px; border: none; background: transparent;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-sm);
+  cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+  transition: all 0.18s; display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.tab-btn:hover { background: var(--bg-light); color: var(--text); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-lt); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── EXPOSURE LIMIT CARD ── */
+.oel-card {
+  background: var(--bg-white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 18px; margin-top: 14px;
+}
+.oel-card h5 { font-size: 12px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+.oel-row { display: grid; grid-template-columns: 90px 1fr 80px; align-items: center; gap: 8px; margin-bottom: 10px; }
+.oel-label { font-size: 11px; font-weight: 700; color: var(--text-md); }
+.oel-bar-wrap { background: #e2e8f0; border-radius: 6px; height: 10px; overflow: hidden; }
+.oel-bar { height: 10px; border-radius: 6px; transition: width 0.5s; }
+.oel-bar.safe   { background: var(--green); }
+.oel-bar.warn   { background: var(--amber); }
+.oel-bar.danger { background: var(--red); }
+.oel-val { font-size: 12px; font-weight: 700; text-align: right; }
+.oel-val.safe   { color: var(--green); }
+.oel-val.warn   { color: var(--amber); }
+.oel-val.danger { color: var(--red); }
+.oel-badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.oel-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.oel-badge.twa  { background: #dbeafe; color: #1d4ed8; }
+.oel-badge.stel { background: #fef9c3; color: #92400e; }
+.oel-badge.idlh { background: #fee2e2; color: #b91c1c; }
+.oel-badge.none { background: #f1f5f9; color: var(--text-sm); }
+.danger-level { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+.danger-level.lv1 { background: var(--green-lt); color: #065f46; border-left: 4px solid var(--green); }
+.danger-level.lv2 { background: var(--amber-lt); color: #78350f; border-left: 4px solid var(--amber); }
+.danger-level.lv3 { background: #fff1f2; color: #9f1239; border-left: 4px solid #f43f5e; }
+.danger-level.lv4 { background: var(--red-lt); color: #7f1d1d; border-left: 4px solid var(--red); }
+.target-ratio-note { font-size: 11px; color: var(--text-sm); margin-top: 6px; }
+
+/* ── VOC CALC ── */
+.voc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+.voc-result-box {
+  background: linear-gradient(135deg, var(--primary-lt) 0%, #e0e7ff 100%);
+  border: 2px solid var(--primary); border-radius: var(--radius);
+  padding: 22px 24px; text-align: center;
+}
+.voc-result-box .vr-label { font-size: 12px; color: var(--primary); font-weight: 600; margin-bottom: 6px; }
+.voc-result-box .vr-val { font-size: 40px; font-weight: 800; color: var(--primary); line-height: 1; }
+.voc-result-box .vr-unit { font-size: 16px; color: var(--primary); font-weight: 600; }
+.tool-box {
+  border-radius: var(--radius); padding: 18px 20px; border: 1px solid var(--border);
+  background: var(--bg-white);
+}
+.tool-box.green { background: var(--green-lt); border-color: var(--green); }
+.tool-box.amber { background: var(--amber-lt); border-color: var(--amber); }
+.tool-box h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+.tool-box .tool-val { font-size: 28px; font-weight: 800; color: var(--green); }
+.tool-box.amber .tool-val { color: var(--amber); }
+.safety-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.safety-card { border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
+.safety-card h5 { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.safety-card p { font-size: 12px; color: var(--text-md); line-height: 1.5; }
+.chem-table-wrap { overflow-x: auto; margin-bottom: 14px; }
+.chem-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.chem-table th { background: var(--bg-light); border: 1px solid var(--border); padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--text-md); text-align: left; white-space: nowrap; }
+.chem-table td { border: 1px solid var(--border); padding: 8px 10px; vertical-align: top; }
+.chem-table tr:hover td { background: var(--bg-light); }
+.inline-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 11px; font-weight: 700; color: var(--text-md); }
+.form-group input, .form-group select { padding: 7px 10px; border: 1px solid var(--border-md); border-radius: 7px; font-family: inherit; font-size: 12px; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+
+/* ── DB TABS (Solvent / Polymer) ── */
+.db-search-bar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.db-search-bar input, .db-search-bar select { padding: 8px 12px; border: 1px solid var(--border-md); border-radius: 7px; font-family: inherit; font-size: 12px; outline: none; flex: 1; min-width: 140px; }
+.db-search-bar input:focus, .db-search-bar select:focus { border-color: var(--primary); }
+.db-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); margin-bottom: 20px; }
+.db-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.db-table th { background: var(--bg-light); border-bottom: 1px solid var(--border); padding: 9px 11px; font-size: 10.5px; font-weight: 700; color: var(--text-md); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.db-table td { padding: 8px 11px; border-bottom: 1px solid var(--border); }
+.db-table tr:last-child td { border-bottom: none; }
+.db-table tr:hover td { background: var(--bg-light); }
+.detail-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+.detail-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+.detail-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.dm-cell { background: var(--bg-light); border-radius: 8px; padding: 12px; text-align: center; }
+.dm-cell .dm-label { font-size: 10px; color: var(--text-sm); font-weight: 600; margin-bottom: 4px; }
+.dm-cell .dm-val { font-size: 18px; font-weight: 700; color: var(--primary); }
+.detail-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.polar-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.polar-high { background: #fee2e2; color: #dc2626; }
+.polar-mid  { background: var(--amber-lt); color: #b45309; }
+.polar-low  { background: var(--green-lt); color: #065f46; }
+.polar-none { background: #f1f5f9; color: var(--text-sm); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <h1>🔬 분석팀 NC Sensor</h1>
+    <span>TSEI Semiconductor Analysis Lab · v2.2 · <b style="color:var(--primary)">Made by 윤경수</b></span>
+  </div>
+
+  <div class="nav-section">메뉴</div>
+  <button class="nav-btn active" id="snav-sensor" onclick="switchTab('sensor')"><span>📡</span> NC 센서 분석</button>
+  <button class="nav-btn" id="snav-voc" onclick="switchTab('voc')"><span>🧪</span> VOC PPM 계산</button>
+  <button class="nav-btn" id="snav-solvent" onclick="switchTab('solvent')"><span>💧</span> 용매 DB</button>
+  <button class="nav-btn" id="snav-polymer" onclick="switchTab('polymer')"><span>🧬</span> 고분자 DB</button>
+  <hr class="sidebar-divider">
+
+  <div class="nav-section">센서 분석 도구</div>
+  <button class="nav-btn" onclick="clearAll()"><span>🗑️</span> 그래프 초기화</button>
+  <button class="nav-btn" onclick="clearResults()"><span>📋</span> 결과 초기화</button>
+  <hr class="sidebar-divider">
+
+  <div class="nav-section">센서 분석 이동</div>
+  <button class="nav-btn" onclick="switchTab('sensor');scrollToChart()"><span class="dot"></span> 그래프 분석</button>
+  <button class="nav-btn" onclick="switchTab('sensor');scrollToResults()"><span class="dot a"></span> 결과 테이블</button>
+
+  <div class="env-section">
+    <label>⚙️ 실험실 온도 (°C)</label>
+    <input type="range" id="lab-temp" min="0" max="60" value="25" step="0.5" oninput="updateLabTemp()">
+    <div class="env-val" id="lab-temp-val">현재 온도: 25.0 °C</div>
+    <div class="env-sub" id="molar-vol-val">몰부피: 24.450 L/mol</div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main">
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-sensor" onclick="switchTab('sensor')">📡 NC 센서 분석</button>
+    <button class="tab-btn" id="tab-voc" onclick="switchTab('voc')">🧪 VOC PPM 계산기</button>
+    <button class="tab-btn" id="tab-solvent" onclick="switchTab('solvent')">💧 용매 DB</button>
+    <button class="tab-btn" id="tab-polymer" onclick="switchTab('polymer')">🧬 고분자 DB</button>
+  </div>
+
+  <!-- ══ TAB: NC SENSOR ══ -->
+  <div class="tab-content active" id="content-sensor">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="page-title">
+      <span style="font-size:26px">🧪</span>
+      <div>
+        <h2>분석팀 NC 센서 분석</h2>
+        <div class="sub">Analysis Team · NC Sensor Analyzer</div>
+      </div>
+    </div>
+    <div class="header-selects" style="flex-wrap:wrap;gap:8px;align-items:center">
+      <input type="text" id="sensor-id" placeholder="Sensor ID" style="width:120px;height:36px;font-size:12px;padding:0 10px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;color:var(--text);box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+      <input type="text" id="sensor-name" placeholder="Sensor Name" style="width:200px;height:36px;font-size:12px;padding:0 10px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;color:var(--text);box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+      <input type="datetime-local" id="inj-start" title="Inj. Start" style="width:180px;height:36px;font-size:12px;padding:0 10px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;color:var(--text);box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+      <input type="datetime-local" id="inj-stop" title="Inj. Stop" style="width:180px;height:36px;font-size:12px;padding:0 10px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;color:var(--text);box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+      <select id="balance-gas" style="width:110px;height:36px;font-size:12px;padding:0 8px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+        <option value="S-Air">S-Air</option>
+        <option value="Lab-Air">Lab-Air</option>
+        <option value="N2">N₂</option>
+        <option value="Ar">Ar</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="material-select" style="width:140px;height:36px;font-size:12px;padding:0 8px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;box-sizing:border-box">
+        <option value="">─ 고분자 선택 ─</option>
+        <option value="PMMA">PMMA</option>
+        <option value="PEO">PEO</option>
+        <option value="EPDM">EPDM</option>
+        <option value="PS">PS</option>
+        <option value="ECL">ECL</option>
+        <option value="PNPD">PNPD</option>
+        <option value="P4PD">P4PD</option>
+        <option value="PSMAH">PSMAH</option>
+        <option value="PEAA">PEAA</option>
+        <option value="PEVA">PEVA</option>
+        <option value="PVBC">PVBC</option>
+      </select>
+      <input type="number" id="gas-conc" value="1000" step="1" min="0" placeholder="농도 (ppm)" style="width:110px;height:36px;font-size:12px;padding:0 10px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;color:var(--text);box-sizing:border-box" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-md)'">
+      <select id="gas-type" style="width:180px;height:36px;font-size:12px;padding:0 8px;border:1px solid var(--border-md);border-radius:7px;font-family:inherit;outline:none;box-sizing:border-box">
+        <optgroup label="── 무기 가스 ──">
+          <option value="NH3">NH₃ (Ammonia)</option>
+          <option value="NO2">NO₂ (Nitrogen dioxide)</option>
+          <option value="H2S">H₂S (Hydrogen sulfide)</option>
+          <option value="CO">CO (Carbon monoxide)</option>
+          <option value="H2O">H₂O (Water vapor)</option>
+        </optgroup>
+        <optgroup label="── VOC ──">
+          <option value="Hexane">Hexane (n-Hexane)</option>
+          <option value="Toluene">Toluene</option>
+          <option value="THF">THF (Tetrahydrofuran)</option>
+          <option value="EtOH">EtOH (Ethanol)</option>
+        </optgroup>
+        <optgroup label="── 기타 ──">
+          <option value="Other">Other</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <!-- 1. ENV -->
+  <!-- 환경 조건 접기/펼치기 -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <button onclick="toggleEnv()" id="btn-env-toggle"
+      style="display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:7px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-md);transition:all 0.15s"
+      onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-md)'">
+      <span id="env-toggle-icon">▶</span> 환경 조건 설정
+    </button>
+    <div id="env-summary" style="font-size:12px;color:var(--text-sm)">
+      온도 <b id="env-temp-disp">25.0</b>°C · RH <b id="env-rh-disp">50.0</b>% · H₂O <b id="env-h2o-disp">11,605</b> ppm
+      <span style="margin-left:6px;font-size:11px;color:var(--text-sm)">(데이터 자동 입력 시 갱신)</span>
+    </div>
+  </div>
+  <div id="env-panel" style="display:none;margin-bottom:8px">
+  <div class="humidity-bar">
+    <div class="hb-label">💧 온습도 → ppm 변환</div>
+    <div class="hb-inline">
+      <label>온도 (°C)</label>
+      <input type="number" id="temp-input" value="25" step="0.1" style="width:78px" oninput="calcHumidity();updateEnvSummary()">
+    </div>
+    <div class="hb-inline">
+      <label>RH (%)</label>
+      <input type="number" id="rh-input" value="50" step="0.1" min="0" max="100" style="width:78px" oninput="calcHumidity();updateEnvSummary()">
+    </div>
+    <div class="hb-result">
+      <div class="val" id="ppm-result">11,605</div>
+      <div class="lbl">ppm H₂O</div>
+      <div class="sub2" id="ps-result">Ps = 31.67 hPa</div>
+    </div>
+
+  </div>
+  </div>
+
+  <!-- 2. DATA & CHART -->
+  <div class="section-title" id="section-chart">2. 데이터 입력 및 분석</div>
+
+  <!-- STEP GUIDE -->
+  <div class="step-guide">
+    <div class="step-item" id="step1">
+      <div class="step-num">1</div>
+      <div class="step-text"><strong>데이터 입력</strong>붙여넣기 후 PLOT</div>
+    </div>
+    <div class="step-item" id="step2">
+      <div class="step-num">2</div>
+      <div class="step-text"><strong>BASELINE 클릭</strong>안정 구간 드래그</div>
+    </div>
+    <div class="step-item" id="step3">
+      <div class="step-num">3</div>
+      <div class="step-text"><strong>REACTION 클릭</strong>반응 구간 드래그</div>
+    </div>
+    <div class="step-item" id="step4">
+      <div class="step-num">4</div>
+      <div class="step-text"><strong>결과 확인</strong>그래프 아래 바로 표시</div>
+    </div>
+    <div class="step-item" id="step5">
+      <div class="step-num">5</div>
+      <div class="step-text"><strong>결과 저장</strong>테이블에 누적 기록</div>
+    </div>
+  </div>
+
+  <!-- CONTROLS ROW -->
+  <div class="controls-row">
+    <!-- Data upload -->
+    <div class="ctrl-card grow" style="flex-direction:column; align-items:stretch; gap:8px; min-width:260px">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-md);">📂 데이터 입력</span>
+        <button class="btn btn-sm" onclick="loadSampleData()" style="margin-left:auto">SAMPLE</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">CLEAR</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" style="padding:10px 14px;flex-shrink:0;width:130px">
+          <div class="uz-icon" style="font-size:20px;margin-bottom:3px">📁</div>
+          <div class="uz-text" style="font-size:11px">파일 드롭/클릭</div>
+          <div class="uz-sub">CSV · TXT</div>
+        </div>
+        <input type="file" id="file-input" accept=".csv,.txt,.tsv" onchange="handleFile(event)">
+        <textarea id="raw-input" placeholder="지원 형식:&#10;① 시간;온도;습도;저항 (세미콜론)&#10;   예: 2026-03-09 14:06:03;24.7;30.4;113538.6&#10;   → x축 HH:MM:SS, 온도/습도 자동 입력&#10;&#10;② 날짜시간 탭 저항&#10;   예: 2026-03-09 14:06:03  113538.6&#10;&#10;③ 저항값만 (줄마다)&#10;   예: 113538.6&#10;       113510.8&#10;   → x축 자동(1,2,3...)" style="flex:1;min-height:80px;font-size:11px"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="parseAndPlot()" style="width:100%">📈 PLOT 그래프 그리기</button>
+    </div>
+
+    <!-- Mode selection -->
+    <div class="ctrl-card" style="flex-direction:column;gap:8px;min-width:260px;max-width:340px">
+      <span style="font-size:12px;font-weight:700;color:var(--text-md);">🎯 분석 모드 선택</span>
+      <div class="mode-row" style="margin-bottom:0">
+        <button class="mode-btn" id="btn-baseline" onclick="setMode('baseline')">📍 BASELINE</button>
+        <button class="mode-btn" id="btn-reaction" onclick="setMode('reaction')">⚡ REACTION 추가</button>
+      </div>
+      <div class="sel-info" id="selection-info" style="margin-bottom:0;min-height:20px">
+        <span class="sel-badge empty">드래그로 구간 선택</span>
+      </div>
+      <!-- Reaction 구간 목록 -->
+      <div id="reaction-list" style="display:flex;flex-direction:column;gap:4px;max-height:130px;overflow-y:auto"></div>
+      <div style="font-size:10px;color:var(--text-sm);margin-top:2px;line-height:1.8">
+        ⌨️ <kbd style="background:var(--bg-light);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">B</kbd> Baseline &nbsp;
+        <kbd style="background:var(--bg-light);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">R</kbd> Reaction &nbsp;
+        <kbd style="background:var(--bg-light);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">S</kbd> 저장 &nbsp;
+        <kbd style="background:var(--bg-light);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px">Z</kbd> Undo
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div class="ctrl-card" style="flex-direction:column;gap:8px;min-width:140px;justify-content:center">
+      <span style="font-size:12px;font-weight:700;color:var(--text-md);">💾 저장 / 내보내기</span>
+      <button class="btn btn-green" id="btn-save" onclick="saveResult()" style="width:100%">💾 결과 저장</button>
+      <button class="btn btn-primary" onclick="copyResultsToClipboard()" style="width:100%" title="엑셀에 바로 Ctrl+V로 붙여넣기 가능">📋 엑셀 복사 <span style="font-size:10px;opacity:0.8">(Ctrl+V)</span></button>
+      <button class="btn" onclick="exportCSV()" style="width:100%">⬇ CSV 저장</button>
+      <button class="btn" onclick="copyChartToClipboard()" id="btn-copy-chart" style="width:100%">📋 그래프만 복사</button>
+      <button class="btn btn-primary" onclick="captureFullResult()" id="btn-capture-full" style="width:100%;background:linear-gradient(135deg,#3b5bdb,#7950f2);border:none;color:#fff;font-weight:600">📸 차트+결과 캡처 저장</button>
+    </div>
+  </div>
+
+  <!-- CHART + RESULT PANEL (attached together) -->
+  <div class="chart-wrap">
+    <div id="plotly-chart"></div>
+
+    <!-- RESULT PANEL directly below chart -->
+    <div class="result-panel">
+      <div class="result-panel-header">
+        <span>📊 계산 결과 — 드래그 구간 선택 시 자동 업데이트</span>
+        <span id="rp-baseline-badge" style="font-size:11px;color:var(--text-sm)">Baseline: 미선택</span>
+      </div>
+      <!-- Baseline 공통 (R₀, Noise) -->
+      <div class="result-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:10px">
+        <div class="result-cell" id="rc-r0">
+          <div class="rc-label">🔵 R₀ 기준저항</div>
+          <div class="rc-val blue empty" id="metric-r0">─</div>
+          <div class="rc-sub">Baseline 구간 최댓값</div>
+        </div>
+        <div class="result-cell" id="rc-noise">
+          <div class="rc-label">🟣 상대노이즈 σ/R₀</div>
+          <div class="rc-val purple empty" id="metric-noise">─</div>
+          <div class="rc-sub">STDEV.P ÷ AVERAGE</div>
+        </div>
+      </div>
+      <!-- 리액션별 결과 카드 -->
+      <div id="reaction-metrics-container"></div>
+    </div>
+  </div>
+
+  <!-- 3. RESULTS TABLE -->
+  <div class="section-title" id="section-results" style="margin-top:24px">3. 결과 로그</div>
+  <div class="results-scroll-wrap">
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Sensor ID</th><th>Sensor Name</th><th>Polymer</th>
+          <th>Inj.Start(s)</th><th>Inj.Stop(s)</th><th>Balance Gas</th><th>Substance</th>
+          <th>Gas.Conc(ppm)</th>
+          <th>R₀(Ω)</th><th>R(Ω)</th><th>ΔR(Ω)</th><th>ΔR/R₀</th>
+          <th>ΔR/C(Ω/ppm)</th><th>k</th><th>Sensitivity(ppm⁻¹)</th>
+          <th>ΔR_noise(Ω)</th><th>Noise(ΔR_noise/R₀)</th><th>Noise</th><th>LOD(ppm)</th>
+          <th>시간</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="results-tbody">
+        <tr><td colspan="22" style="text-align:center;color:var(--text-sm);padding:32px;font-size:13px">
+          아직 저장된 결과가 없습니다 · Baseline과 Reaction 구간을 선택한 후 [결과 저장]을 클릭하세요
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  </div><!-- /content-sensor -->
+
+  <!-- ══ TAB: VOC PPM 계산기 ══ -->
+  <div class="tab-content" id="content-voc">
+    <div class="page-header">
+      <div class="page-title">
+        <span style="font-size:26px">🧪</span>
+        <div>
+          <h2>VOC PPM 계산기</h2>
+          <div class="sub">주입량 계산 · 안전 정보 · 도구 추천</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 성분 DB 관리 -->
+    <div class="section-title">1. 성분 데이터베이스 관리</div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:12px;font-weight:700;color:var(--text-md)">📋 성분 목록 (클릭하여 선택)</span>
+        <button class="btn btn-sm" onclick="toggleAddForm()" id="add-form-toggle-btn">➕ 새 성분 추가</button>
+      </div>
+
+      <!-- 추가 폼 -->
+      <div id="add-chem-form" style="display:none;background:var(--bg-light);border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:10px">새 성분 추가</div>
+        <div class="inline-form">
+          <div class="form-group"><label>성분명</label><input type="text" id="new-name" placeholder="예: Hexane" style="width:140px"></div>
+          <div class="form-group"><label>분자량</label><input type="number" id="new-mw" step="0.001" placeholder="g/mol" style="width:90px"></div>
+          <div class="form-group"><label>밀도 (g/mL)</label><input type="number" id="new-density" step="0.001" placeholder="0.000" style="width:90px"></div>
+          <div class="form-group"><label>순도 (%)</label><input type="number" id="new-purity" value="100" min="0" max="100" style="width:80px"></div>
+          <div class="form-group"><label>끓는점</label><input type="text" id="new-bp" placeholder="예: 69°C" style="width:90px"></div>
+          <div class="form-group"><label>인화성</label><input type="text" id="new-flam" placeholder="높음/낮음" style="width:90px"></div>
+          <div class="form-group"><label>독성/위험성</label><input type="text" id="new-tox" placeholder="간략히" style="width:160px"></div>
+          <div class="form-group"><label>특이사항</label><input type="text" id="new-note" placeholder="간략히" style="width:160px"></div>
+          <div class="form-group" style="justify-content:flex-end"><label>&nbsp;</label>
+            <button class="btn btn-primary btn-sm" onclick="addChem()">추가</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 성분 테이블 -->
+      <div class="chem-table-wrap">
+        <table class="chem-table" id="chem-db-table">
+          <thead><tr>
+            <th>선택</th><th>성분명</th><th>분자량</th><th>밀도</th><th>순도%</th>
+            <th>끓는점</th><th>인화성</th><th>독성/위험성</th><th>특이사항</th><th>삭제</th>
+          </tr></thead>
+          <tbody id="chem-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 주입 조건 -->
+    <div class="section-title">2. 주입 조건 설정</div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group">
+          <label>공기(Air) 주입량 (L)</label>
+          <input type="number" id="air-vol" value="12" step="0.1" min="0" style="width:120px" oninput="calcVOC()">
+        </div>
+        <div class="form-group">
+          <label>목표 농도 (ppm)</label>
+          <input type="number" id="target-ppm" value="1000" step="1" min="0" style="width:120px" oninput="calcVOC()">
+        </div>
+        <div style="font-size:12px;color:var(--text-sm);padding-bottom:8px">
+          몰부피: <b id="voc-molvol">24.450 L/mol</b> (사이드바 온도 연동)
+        </div>
+      </div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="section-title">3. 계산 결과 및 도구 추천</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="voc-result-box">
+        <div class="vr-label" id="voc-result-label">선택된 성분 없음</div>
+        <div class="vr-val" id="voc-result-val">─</div>
+        <div class="vr-unit">μL</div>
+        <div style="font-size:11px;color:var(--primary);margin-top:8px;opacity:0.8" id="voc-formula-display"></div>
+      </div>
+      <div id="voc-tool-box" class="tool-box">
+        <h4>🛠️ 추천 도구</h4>
+        <div id="voc-tool-content" style="color:var(--text-sm);font-size:12px">성분과 조건을 선택하면<br>도구 추천이 표시됩니다</div>
+      </div>
+    </div>
+
+    <!-- 안전 정보 -->
+    <div class="section-title">4. 물질 안전 정보</div>
+    <div class="safety-grid" id="voc-safety-grid">
+      <div class="safety-card" style="background:var(--bg-light)">
+        <h5>⚗️ 물성 요약</h5>
+        <p id="voc-safety-props">성분을 선택하세요</p>
+      </div>
+      <div class="safety-card" style="background:var(--red-lt);border-color:var(--red)">
+        <h5 style="color:var(--red)">⚠️ 특이사항 / 주의</h5>
+        <p id="voc-safety-note" style="color:#9a1212;font-weight:600">─</p>
+      </div>
+    </div>
+
+    <!-- 노출기준 카드 -->
+    <div class="oel-card" id="voc-oel-card" style="display:none">
+      <h5>🛡️ 작업장 허용 노출기준 (고용노동부 고시 · ACGIH 준용)</h5>
+      <div id="voc-oel-content"></div>
+    </div>
+
+    <div style="margin-top:12px" id="voc-msds-link"></div>
+  </div><!-- /content-voc -->
+
+  <!-- ══ TAB: 용매 DB ══ -->
+  <div class="tab-content" id="content-solvent">
+    <div class="page-header">
+      <div class="page-title">
+        <span style="font-size:26px">💧</span>
+        <div><h2>용매 데이터베이스</h2><div class="sub">Hansen Solubility Parameters · 극성 · 물성</div></div>
+      </div>
+    </div>
+    <div class="section-title">용매 목록 및 검색</div>
+    <div class="db-search-bar">
+      <input type="text" id="solvent-search" placeholder="🔍 용매명 검색..." oninput="filterSolvents()">
+      <select id="solvent-polar-filter" onchange="filterSolvents()">
+        <option value="">── 극성 분류 전체 ──</option>
+        <option value="초극성">초극성</option>
+        <option value="고극성">고극성</option>
+        <option value="중간극성">중간극성</option>
+        <option value="약극성~중극성">약극성~중극성</option>
+        <option value="약극성">약극성</option>
+        <option value="비극성">비극성</option>
+      </select>
+    </div>
+    <div class="db-table-wrap">
+      <table class="db-table">
+        <thead><tr>
+          <th>용매</th><th>δd</th><th>δp</th><th>δh</th><th>δt</th>
+          <th>유전상수</th><th>BP(°C)</th><th>증기압</th><th>점도(cP)</th>
+          <th>극성분류</th><th>표면장력</th><th>상세</th>
+        </tr></thead>
+        <tbody id="solvent-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 상세 카드 -->
+    <div class="detail-card" id="solvent-detail" style="display:none">
+      <h3 id="solvent-detail-title">─</h3>
+      <div class="detail-metrics">
+        <div class="dm-cell"><div class="dm-label">δt (전체)</div><div class="dm-val" id="sd-dt">─</div></div>
+        <div class="dm-cell"><div class="dm-label">유전상수</div><div class="dm-val" id="sd-diel">─</div></div>
+        <div class="dm-cell"><div class="dm-label">끓는점</div><div class="dm-val" id="sd-bp">─ °C</div></div>
+        <div class="dm-cell"><div class="dm-label">점도 (cP)</div><div class="dm-val" id="sd-visc">─</div></div>
+      </div>
+      <div class="detail-two">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:10px">📊 Hansen Parameters</div>
+          <table class="db-table" style="font-size:12px">
+            <thead><tr><th>항목</th><th>값</th></tr></thead>
+            <tbody>
+              <tr><td>δd (분산력)</td><td id="sd-dd">─</td></tr>
+              <tr><td>δp (극성력)</td><td id="sd-dp">─</td></tr>
+              <tr><td>δh (수소결합력)</td><td id="sd-dh">─</td></tr>
+              <tr><td>HLP</td><td id="sd-hlp">─</td></tr>
+              <tr><td>HLB</td><td id="sd-hlb">─</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:10px">💧 물과의 관계</div>
+          <div id="sd-water-info" style="font-size:12px;line-height:1.8;color:var(--text-md)">─</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /content-solvent -->
+
+  <!-- ══ TAB: 고분자 DB ══ -->
+  <div class="tab-content" id="content-polymer">
+    <div class="page-header">
+      <div class="page-title">
+        <span style="font-size:26px">🧬</span>
+        <div><h2>고분자 데이터베이스</h2><div class="sub">극성 · 수소결합 · 추천용매 연동</div></div>
+      </div>
+    </div>
+    <div class="section-title">고분자 목록 및 검색</div>
+    <div class="db-search-bar">
+      <input type="text" id="polymer-search" placeholder="🔍 고분자명 검색..." oninput="filterPolymers()">
+      <select id="polymer-polar-filter" onchange="filterPolymers()">
+        <option value="">── 극성 여부 전체 ──</option>
+        <option value="극성">극성</option>
+        <option value="약극성">약극성</option>
+        <option value="비극성">비극성</option>
+        <option value="중간~강한 극성">중간~강한 극성</option>
+        <option value="강한 극성">강한 극성</option>
+        <option value="약극성~비극성">약극성~비극성</option>
+        <option value="약극성~중극성">약극성~중극성</option>
+      </select>
+    </div>
+    <div class="db-table-wrap">
+      <table class="db-table">
+        <thead><tr>
+          <th>고분자</th><th>극성여부</th><th>수소결합</th><th>추천용매</th><th>주요특성</th><th>상세</th>
+        </tr></thead>
+        <tbody id="polymer-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 상세 카드 -->
+    <div class="detail-card" id="polymer-detail" style="display:none">
+      <h3 id="polymer-detail-title">─</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="dm-cell"><div class="dm-label">극성 여부</div><div class="dm-val" style="font-size:14px" id="pd-polar">─</div></div>
+        <div class="dm-cell"><div class="dm-label">수소결합</div><div class="dm-val" style="font-size:14px" id="pd-hbond">─</div></div>
+        <div class="dm-cell" style="background:var(--green-lt)"><div class="dm-label">주요 특성</div><div style="font-size:12px;color:var(--green);font-weight:600;margin-top:4px" id="pd-props">─</div></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-md);margin-bottom:10px">💡 추천용매 상세 물리 데이터</div>
+      <div class="db-table-wrap" style="margin-bottom:0">
+        <table class="db-table"><thead><tr>
+          <th>용매</th><th>BP(°C)</th><th>δt</th><th>유전상수</th><th>극성분류</th>
+        </tr></thead>
+        <tbody id="pd-solvent-tbody"></tbody></table>
+      </div>
+    </div>
+
+  </div><!-- /content-polymer -->
+
+
+</main>
+<div id="notification"></div>
+
+<script>
+const state = {
+  data:{x:[],y:[]}, baseline:{x:[],y:[],range:null}, reaction:{x:[],y:[],range:null}, sairH2oPpm:null,
+  mode:null, driftCorrection:false, results:[], resultCount:0,
+  metrics:{r0:null,noise:null,dr:null,k:null,lod:null,loq:null}
+};
+
+// STEP GUIDE
+function setStep(n){
+  [1,2,3,4,5].forEach(i=>{
+    const el=document.getElementById('step'+i);
+    if(!el)return;
+    el.classList.remove('active','done');
+    if(i<n)el.classList.add('done');
+    else if(i===n)el.classList.add('active');
+  });
+}
+
+// FLASH a result cell when value updates
+function flashCell(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.remove('updated');
+  void el.offsetWidth;
+  el.classList.add('updated');
+}
+
+// SET a metric value with flash + remove empty style
+function setMetric(id, cellId, val){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=val;
+  el.classList.remove('empty');
+  flashCell(cellId);
+}
+
+// HUMIDITY
+function toggleEnv(){
+  const panel=document.getElementById('env-panel');
+  const icon=document.getElementById('env-toggle-icon');
+  const open=panel.style.display==='none';
+  panel.style.display=open?'block':'none';
+  icon.textContent=open?'▼':'▶';
+}
+function updateEnvSummary(){
+  const t=parseFloat(document.getElementById('temp-input').value)||0;
+  const rh=parseFloat(document.getElementById('rh-input').value)||0;
+  const Ps=6.1121*Math.exp((18.678-t/234.5)*(t/(257.14+t)));
+  const ppm=Math.round((rh/100)*(Ps/1013.25)*1e6);
+  document.getElementById('env-temp-disp').textContent=t.toFixed(1);
+  document.getElementById('env-rh-disp').textContent=rh.toFixed(1);
+  document.getElementById('env-h2o-disp').textContent=ppm.toLocaleString();
+}
+function calcHumidity(){
+  const T=parseFloat(document.getElementById('temp-input').value);
+  const RH=parseFloat(document.getElementById('rh-input').value);
+  if(isNaN(T)||isNaN(RH))return;
+  const Ps=6.1121*Math.exp((18.678-T/234.5)*(T/(257.14+T)));
+  const ppm=(RH/100)*(Ps/1013.25)*1e6;
+  document.getElementById('ppm-result').textContent=ppm.toLocaleString('ko-KR',{maximumFractionDigits:0});
+  document.getElementById('ps-result').textContent=`Ps = ${Ps.toFixed(3)} hPa`;
+}
+document.getElementById('temp-input').addEventListener('input',calcHumidity);
+document.getElementById('rh-input').addEventListener('input',calcHumidity);
+calcHumidity();
+
+function updateLabTemp(){
+  const T=parseFloat(document.getElementById('lab-temp').value);
+  const Vm=22.414*(273.15+T)/273.15;
+  document.getElementById('lab-temp-val').textContent=`현재 온도: ${T.toFixed(1)} °C`;
+  document.getElementById('molar-vol-val').textContent=`몰부피: ${Vm.toFixed(3)} L/mol`;
+}
+function scrollToChart(){document.getElementById('section-chart').scrollIntoView({behavior:'smooth'});}
+function scrollToResults(){document.getElementById('section-results').scrollIntoView({behavior:'smooth'});}
+
+// SAMPLE DATA
+function generateSampleData(){
+  const d=[];
+  for(let i=0;i<300;i++){
+    const t=i*0.5, noise=(Math.random()-0.5)*30, drift=i*0.2;
+    let R;
+    if(i<60)R=10000+drift+noise;
+    else if(i<80)R=10000+drift+(i-60)*80+noise;
+    else if(i<150)R=11600+drift+(Math.random()-0.5)*60;
+    else if(i<170)R=11600+drift-(i-150)*80+noise;
+    else{const p=i-170;if(p<20)R=10000+drift+p*120+noise;else if(p<40)R=12400+drift+(Math.random()-0.5)*80;else R=12400+drift-(p-40)*120+noise;}
+    d.push(`${t.toFixed(1)}, ${R.toFixed(2)}`);
+  }
+  return d.join('\n');
+}
+function loadSampleData(){
+  document.getElementById('raw-input').value=generateSampleData();
+  parseAndPlot();
+  showNotification('샘플 데이터 로드 완료 · 300포인트 · NH₃ 100ppm 시뮬레이션','success');
+}
+
+// PARSE
+function parseData(text){
+  const x=[],y=[],rawTs=[];
+  const temps=[], hums=[];
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  let dtMode=false;
+
+  for(const line of lines){
+    // 헤더 행 스킵 (숫자로 시작하지 않는 줄)
+    if(!line.match(/^\d/)) continue;
+
+    // 1) 세미콜론 구분 4컬럼: "날짜시간;온도;습도;저항"
+    const sc=line.split(';');
+    if(sc.length>=4){
+      const dtStr=sc[0].trim();
+      const temp=parseFloat(sc[1]);
+      const hum=parseFloat(sc[2]);
+      const res=parseFloat(sc[3]);
+      const dt=new Date(dtStr.replace(' ','T'));
+      if(!isNaN(dt.getTime())&&!isNaN(res)){
+        rawTs.push(dt.getTime()); y.push(res); dtMode=true;
+        if(!isNaN(temp)) temps.push(temp);
+        if(!isNaN(hum))  hums.push(hum);
+      }
+      continue;
+    }
+
+    // 2) 날짜시간 + 탭 + 저항값: "2026-03-05 14:24  63941.28"
+    const m=line.match(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(?::\d{2})?)\s*\t\s*([0-9.]+)/);
+    if(m){
+      const dt=new Date(m[1].replace(' ','T'));
+      const val=parseFloat(m[2]);
+      if(!isNaN(dt.getTime())&&!isNaN(val)){rawTs.push(dt.getTime());y.push(val);dtMode=true;}
+      continue;
+    }
+
+    const p=line.split(/[,\t\s]+/).map(s=>s.trim()).filter(Boolean);
+    if(p.length===0)continue;
+
+    // 3) 숫자 하나만 있는 줄 → 저항값만 입력한 경우 (시간은 자동 부여)
+    if(p.length===1){
+      const yi=parseFloat(p[0]);
+      if(!isNaN(yi)){y.push(yi);}
+      continue;
+    }
+
+    // 4) 숫자 두 개: "time, resistance" 형식
+    const xi=parseFloat(p[0]),yi=parseFloat(p[1]);
+    if(!isNaN(xi)&&!isNaN(yi)){x.push(xi);y.push(yi);}
+  }
+
+  // 날짜시간 모드: HH:MM:SS 문자열로 변환
+  if(dtMode&&rawTs.length>0){
+    rawTs.forEach(t=>{
+      const d=new Date(t);
+      const hh=String(d.getHours()).padStart(2,'0');
+      const mm=String(d.getMinutes()).padStart(2,'0');
+      const ss=String(d.getSeconds()).padStart(2,'0');
+      x.push(`${hh}:${mm}:${ss}`);
+    });
+  }
+
+  // x가 비어있으면 인덱스 자동 부여
+  if(x.length===0&&y.length>0){
+    y.forEach((_,i)=>x.push(i+1));
+  }
+
+  // 온도·습도 평균 반환
+  const avgTemp = temps.length ? temps.reduce((a,b)=>a+b,0)/temps.length : null;
+  const avgHum  = hums.length  ? hums.reduce((a,b)=>a+b,0)/hums.length  : null;
+
+  // datetime-local 형식: "YYYY-MM-DDTHH:MM"
+  function toDatetimeLocal(ms){
+    const d=new Date(ms);
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  const injStart = rawTs.length ? toDatetimeLocal(rawTs[0])           : null;
+  const injStop  = rawTs.length ? toDatetimeLocal(rawTs[rawTs.length-1]) : null;
+
+  return{x, y, avgTemp, avgHum, injStart, injStop};
+}
+function handleFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{document.getElementById('raw-input').value=ev.target.result;parseAndPlot();showNotification(`파일 로드: ${file.name}`,'success');};
+  r.readAsText(file);
+}
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag-over');
+  const file=e.dataTransfer.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{document.getElementById('raw-input').value=ev.target.result;parseAndPlot();showNotification(`파일 드롭: ${file.name}`,'success');};
+  r.readAsText(file);
+});
+function parseAndPlot(){
+  const text=document.getElementById('raw-input').value;
+  if(!text.trim()){showNotification('데이터가 없습니다','error');return;}
+  const{x,y,avgTemp,avgHum,injStart,injStop}=parseData(text);
+  if(!x.length){showNotification('데이터 파싱 실패 · 형식 확인 필요','error');return;}
+  // 온도·습도 자동 입력
+  if(avgTemp!=null){
+    document.getElementById('temp-input').value=avgTemp.toFixed(1);
+    document.getElementById('temp-input').dispatchEvent(new Event('input'));
+  }
+  if(avgHum!=null){
+    document.getElementById('rh-input').value=avgHum.toFixed(1);
+    document.getElementById('rh-input').dispatchEvent(new Event('input'));
+  }
+  if(avgTemp!=null||avgHum!=null){
+    calcHumidity();
+    updateEnvSummary();
+  }
+  if(injStart){
+    document.getElementById('inj-start').value=injStart;
+    document.getElementById('inj-stop').value=injStop||injStart;
+  }
+  state.data={x,y};
+  state.baseline={x:[],y:[],range:null};state.reaction={x:[],y:[],range:null};state.reactions=[];
+  // 이전 결과의 차트 주석만 제거 (테이블 데이터는 유지)
+  state.results.forEach(r=>r._chartRange=null);
+  if(typeof Plotly !== 'undefined'){
+    try { Plotly.purge('plotly-chart'); } catch(e){ console.warn('purge failed:', e); }
+  }
+  chartInitialized = false;
+  resetMetrics();
+  renderReactionList();
+  updateSelectionInfo();
+  // Plotly 로드 확인
+  if(typeof Plotly === 'undefined'){
+    showNotification('Plotly 라이브러리 로딩 중... 잠시 후 다시 시도하세요', 'error');
+    return;
+  }
+  try {
+    renderChart();
+    setStep(2);
+    const isDatetime = text.trim().match(/^\d{4}-\d{2}-\d{2}/m);
+    const extraMsg = [isDatetime?'HH:MM:SS 시간축':'', injStart?'시작/종료 시간 자동입력':''].filter(Boolean).join(' · ');
+    showNotification(`${x.length}개 포인트 플롯 완료${extraMsg?' · '+extraMsg:''}`, 'success');
+  } catch(e) {
+    showNotification('차트 렌더링 오류: '+e.message, 'error');
+    console.error('renderChart error:', e);
+  }
+}
+
+// DRIFT
+function linReg(x,y){
+  const n=x.length,sx=x.reduce((a,b)=>a+b,0),sy=y.reduce((a,b)=>a+b,0);
+  const sxy=x.reduce((a,xi,i)=>a+xi*y[i],0),sx2=x.reduce((a,xi)=>a+xi*xi,0);
+  const slope=(n*sxy-sx*sy)/(n*sx2-sx*sx),intercept=(sy-slope*sx)/n;
+  return{slope,intercept};
+}
+function applyDrift(x,y,bx,by){
+  if(bx.length<2)return y;
+  const{slope,intercept}=linReg(bx,by);
+  return y.map((yi,i)=>yi-(slope*x[i]+intercept-(slope*x[0]+intercept)));
+}
+
+// CHART
+let chartInitialized = false;
+function renderChart(){
+  const{x,y}=state.data;
+  if(!x||!x.length){console.warn('renderChart: no data');return;}
+  let dY=y;
+  if(state.driftCorrection&&state.baseline.x.length>=2)dY=applyDrift(x,y,state.baseline.x,state.baseline.y);
+  const xIsDate = isTimeAxis();
+  const traces=[{x,y:dY,mode:'lines',name:'저항',line:{color:'#3b5bdb',width:1.8},hovertemplate: xIsDate?'<b>%{x}</b><br><b>R</b>: %{y:.2f} Ω<extra></extra>':'<b>t</b>: %{x} s<br><b>R</b>: %{y:.2f} Ω<extra></extra>'}];
+  function getRangeIdx(x0,x1){
+    if(isTimeAxis()){
+      const i0=state.data.x.indexOf(x0), i1=state.data.x.lastIndexOf(x1);
+      if(i0<0||i1<0) return [];
+      const lo=Math.min(i0,i1), hi=Math.max(i0,i1);
+      return Array.from({length:hi-lo+1},(_,k)=>lo+k);
+    }
+    return x.map((xi,i)=>(xi>=x0&&xi<=x1)?i:-1).filter(i=>i!==-1);
+  }
+  if(state.baseline.range){const[x0,x1]=state.baseline.range;const idx=getRangeIdx(x0,x1);traces.push({x:idx.map(i=>x[i]),y:idx.map(i=>dY[i]),mode:'lines',name:'Baseline 구간',line:{color:'#12b886',width:3},hoverinfo:'skip'});}
+  state.reactions.forEach((rxn,i)=>{
+    const[x0,x1]=rxn.range;
+    const idx=getRangeIdx(x0,x1);
+    if(idx.length)traces.push({x:idx.map(j=>x[j]),y:idx.map(j=>dY[j]),mode:'lines',name:`Reaction #${i+1} ${rxn.gasType}`,line:{color:'#f59f00',width:3},hoverinfo:'skip'});
+  });
+  const layout=buildChartLayout(xIsDate);
+  const plotConfig={responsive:true,displayModeBar:true,displaylogo:false,
+    modeBarButtonsToRemove:[],
+    toImageButtonOptions:{format:'png',filename:document.getElementById('sensor-name')?.value||'nc_sensor',height:500,width:1400,scale:2}};
+  if(!chartInitialized){
+    Plotly.newPlot('plotly-chart',traces,layout,plotConfig);
+    const el=document.getElementById('plotly-chart');
+    if(el && el.on){
+      el.on('plotly_selected', handleSelection);
+      el.on('plotly_deselect', ()=>{});
+    }
+    chartInitialized=true;
+  } else {
+    Plotly.react('plotly-chart',traces,layout,plotConfig);
+  }
+}
+function renderEmptyChart(){
+  Plotly.newPlot('plotly-chart',[],{
+    paper_bgcolor:'#ffffff',plot_bgcolor:'#f8faff',
+    font:{family:'Inter,sans-serif',color:'#94a3b8',size:11},
+    margin:{l:60,r:20,t:14,b:50},
+    xaxis:{title:{text:'Time (s)',font:{color:'#94a3b8',size:11}},gridcolor:'#e2e8f0',zerolinecolor:'#cbd5e1',tickfont:{color:'#94a3b8'}},
+    yaxis:{title:{text:'Resistance (Ω)',font:{color:'#94a3b8',size:11}},gridcolor:'#e2e8f0',zerolinecolor:'#cbd5e1',tickfont:{color:'#94a3b8'}},
+    annotations:[{text:'데이터를 불러오거나 붙여넣기 하세요<br><span style="font-size:11px;color:#cbd5e1">CSV · TXT · Paste · Sample</span>',x:0.5,y:0.5,xref:'paper',yref:'paper',showarrow:false,font:{color:'#94a3b8',size:14,family:'Inter,Noto Sans KR'},align:'center'}]
+  },{responsive:true,displayModeBar:false,displaylogo:false});
+}
+
+// SELECTION
+function isTimeAxis(){
+  const x=state.data.x;
+  return x.length>0 && typeof x[0]==='string' && /^\d{2}:\d{2}:\d{2}$/.test(x[0]);
+}
+function selIdx(eventData){
+  const x=state.data.x;
+  if(isTimeAxis()){
+    // category 축: Plotly가 숫자 인덱스 범위로 반환
+    const[i0,i1]=eventData.range.x;
+    const lo=Math.max(0,Math.floor(i0)), hi=Math.min(x.length-1,Math.ceil(i1));
+    return Array.from({length:hi-lo+1},(_,k)=>lo+k);
+  } else {
+    const[x0,x1]=eventData.range.x;
+    return x.map((xi,i)=>(xi>=x0&&xi<=x1)?i:-1).filter(i=>i!==-1);
+  }
+}
+function midX(x0,x1){
+  const x=state.data.x;
+  if(isTimeAxis()){
+    const i0=x.indexOf(x0), i1=x.lastIndexOf(x1);
+    return x[Math.round((i0+i1)/2)]||x0;
+  }
+  return (x0+x1)/2;
+}
+function handleSelection(eventData){
+  if(!eventData||!eventData.range||!state.mode)return;
+  const{x,y}=state.data;
+  let dY=y;if(state.driftCorrection&&state.baseline.x.length>=2)dY=applyDrift(x,y,state.baseline.x,state.baseline.y);
+  const idx=selIdx(eventData);
+  const selX=idx.map(i=>x[i]),selY=idx.map(i=>dY[i]);
+  if(!selX.length)return;
+  const range=[selX[0],selX[selX.length-1]];
+  if(state.mode==='baseline'){
+    state.baseline={x:selX,y:selY,range};
+    openSairModal(selY);
+  } else {
+    const gasType=document.getElementById('gas-type').value;
+    const conc=parseFloat(document.getElementById('gas-conc').value)||0;
+    const rxn={id:Date.now(),x:selX,y:selY,range,gasType,conc};
+    state.reactions.push(rxn);
+    state.reaction={x:selX,y:selY,range};
+    calculateReaction(selY,conc);
+    renderReactionList();
+  }
+  updateSelectionInfo();updateChartOverlays();
+}
+// Update only trace overlays without re-initializing chart (preserves event listeners)
+function buildChartLayout(xIsDate){
+  const xTitle = xIsDate ? 'Time' : 'Time (s)';
+  const xType  = xIsDate ? 'category' : 'linear';
+  // shapes: baseline(green), reaction(amber), saved results(pink bg)
+  const shapes=[], annotations=[];
+  // saved result annotations
+  state.results.forEach((r,i)=>{
+    if(!r._chartRange)return;
+    const[rx0,rx1]=r._chartRange;
+    const yVals=state.data.y;
+    const yMax=Math.max(...yVals), yMin=Math.min(...yVals);
+    shapes.push({
+      type:'rect', xref:'x', yref:'paper',
+      x0:rx0, x1:rx1, y0:0, y1:1,
+      fillcolor:'rgba(255,180,180,0.18)', line:{width:0}, layer:'below'
+    });
+    const dr = r.dr!=null?(r.dr*100).toFixed(2)+'%':'─';
+    const k  = r.k!=null?r.k.toExponential(3):'─';
+    const label = `<b>${r.gasType} ${r.conc}ppm</b><br>ΔR/R₀: ${dr}<br>k: ${k}`;
+    annotations.push({
+      x: midX(rx0,rx1),
+      y:1, yref:'paper', xref:'x',
+      text: label, showarrow:false,
+      font:{size:10,color:'#c92a2a',family:'Inter,Noto Sans KR'},
+      align:'center', yanchor:'top',
+      bgcolor:'rgba(255,255,255,0.85)', bordercolor:'rgba(220,100,100,0.3)', borderwidth:1, borderpad:4
+    });
+  });
+  if(state.baseline.range){
+    const[x0,x1]=state.baseline.range;
+    shapes.push({type:'rect',xref:'x',yref:'paper',x0,x1,y0:0,y1:1,fillcolor:'rgba(18,184,134,0.10)',line:{color:'#12b886',width:1,dash:'dot'},layer:'below'});
+    // Baseline 주석: Balance Gas, H2O ppm, 노이즈
+    const balGas = document.getElementById('balance-gas')?.value||'─';
+    const tempV  = parseFloat(document.getElementById('temp-input')?.value)||0;
+    const rhV    = parseFloat(document.getElementById('rh-input')?.value)||0;
+    const Ps2    = 6.1121*Math.exp((18.678-tempV/234.5)*(tempV/(257.14+tempV)));
+    const h2oPpm2= Math.round((rhV/100)*(Ps2/1013.25)*1e6);
+    const noiseStr = state.metrics.noise!=null ? state.metrics.noise.toExponential(3) : '─';
+    annotations.push({
+      x: midX(x0,x1),
+      y:1, yref:'paper', xref:'x',
+      text:`<b>${balGas}</b><br>H₂O: ${state.sairH2oPpm!=null ? state.sairH2oPpm.toLocaleString()+' ppm' : h2oPpm2.toLocaleString()+' ppm (env)'}<br>Noise: ${noiseStr}`,
+      showarrow:false, font:{size:10,color:'#0ca678',family:'Inter,Noto Sans KR'},
+      align:'center', yanchor:'top',
+      bgcolor:'rgba(240,253,249,0.95)', bordercolor:'rgba(18,184,134,0.5)', borderwidth:1, borderpad:5
+    });
+  }
+  state.reactions.forEach((rxn,i)=>{
+    const[x0,x1]=rxn.range;
+    shapes.push({type:'rect',xref:'x',yref:'paper',x0,x1,y0:0,y1:1,fillcolor:'rgba(245,159,0,0.12)',line:{color:'#f59f00',width:1,dash:'dot'},layer:'below'});
+    const r0=state.metrics.r0, noiseRel=state.metrics.noise;
+    const rMax2=r0!=null?Math.max(...rxn.y):null;
+    const dr2=r0!=null?(rMax2-r0)/r0:null;
+    const k2=(dr2!=null&&rxn.conc>0)?dr2/rxn.conc:null;
+    const lod2=(k2&&noiseRel&&k2>0)?3*noiseRel/k2:null;
+    const kStr=k2!=null?k2.toExponential(3):'─';
+    const lodStr=lod2!=null?lod2.toFixed(2)+' ppm':'─';
+    const loq2=lod2!=null?lod2*10/3:null;
+    const loqStr=loq2!=null?loq2.toFixed(2)+' ppm':'─';
+    annotations.push({
+      x:midX(x0,x1),
+      y:1,yref:'paper',xref:'x',
+      text:`<b>${rxn.gasType} ${rxn.conc} ppm</b><br>k: ${kStr}<br>LOD: ${lodStr}<br>LOQ: ${loqStr}`,
+      showarrow:false,font:{size:10,color:'#d97706',family:'Inter,Noto Sans KR'},
+      align:'center',yanchor:'top',
+      bgcolor:'rgba(255,251,235,0.95)',bordercolor:'rgba(245,159,0,0.5)',borderwidth:1,borderpad:5
+    });
+  });
+  // 하이라이트 구간 (테이블 클릭 시)
+  if(state._highlight){
+    const[hx0,hx1]=state._highlight;
+    shapes.push({type:'rect',xref:'x',yref:'paper',x0:hx0,x1:hx1,y0:0,y1:1,
+      fillcolor:'rgba(59,91,219,0.22)',line:{color:'#3b5bdb',width:2,dash:'solid'},layer:'above'});
+  }
+  return {
+    paper_bgcolor:'#ffffff', plot_bgcolor:'#f8faff',
+    font:{family:'Inter,Noto Sans KR,sans-serif',color:'#475569',size:11},
+    margin:{l:60,r:20,t:14,b:50},
+    xaxis:{title:{text:xTitle,font:{color:'#94a3b8',size:11}},type:xType,gridcolor:'#e2e8f0',zerolinecolor:'#cbd5e1',tickfont:{color:'#94a3b8',size:10},nticks:xIsDate?20:undefined,tickangle:xIsDate?-30:0},
+    yaxis:{title:{text:'Resistance (Ω)',font:{color:'#94a3b8',size:11}},gridcolor:'#e2e8f0',zerolinecolor:'#cbd5e1',tickfont:{color:'#94a3b8'}},
+    legend:{bgcolor:'rgba(255,255,255,0.9)',bordercolor:'#e2e8f0',borderwidth:1,font:{size:11}},
+    shapes, annotations,
+    dragmode:'select', selectdirection:'h'
+  };
+}
+function updateChartOverlays(){
+  const{x,y}=state.data;
+  if(!x.length||!chartInitialized)return;
+  let dY=y;
+  if(state.driftCorrection&&state.baseline.x.length>=2)dY=applyDrift(x,y,state.baseline.x,state.baseline.y);
+  const xIsDate = isTimeAxis();
+  const traces=[{x,y:dY,mode:'lines',name:'저항',line:{color:'#3b5bdb',width:1.8},
+    hovertemplate: xIsDate ? '<b>%{x}</b><br><b>R</b>: %{y:.2f} Ω<extra></extra>' : '<b>t</b>: %{x:.2f} s<br><b>R</b>: %{y:.2f} Ω<extra></extra>'}];
+  function getRangeIdx(x0,x1){
+    if(isTimeAxis()){
+      const i0=state.data.x.indexOf(x0), i1=state.data.x.lastIndexOf(x1);
+      if(i0<0||i1<0) return [];
+      const lo=Math.min(i0,i1), hi=Math.max(i0,i1);
+      return Array.from({length:hi-lo+1},(_,k)=>lo+k);
+    }
+    return x.map((xi,i)=>(xi>=x0&&xi<=x1)?i:-1).filter(i=>i!==-1);
+  }
+  if(state.baseline.range){const[x0,x1]=state.baseline.range;const idx=getRangeIdx(x0,x1);traces.push({x:idx.map(i=>x[i]),y:idx.map(i=>dY[i]),mode:'lines',name:'Baseline 구간',line:{color:'#12b886',width:3},hoverinfo:'skip'});}
+  state.reactions.forEach((rxn,i)=>{
+    const[x0,x1]=rxn.range;
+    const idx=getRangeIdx(x0,x1);
+    if(idx.length)traces.push({x:idx.map(j=>x[j]),y:idx.map(j=>dY[j]),mode:'lines',name:`Reaction #${i+1} ${rxn.gasType}`,line:{color:'#f59f00',width:3},hoverinfo:'skip'});
+  });
+  Plotly.react('plotly-chart',traces,buildChartLayout(xIsDate),{
+    responsive:true,displayModeBar:true,displaylogo:false,
+    modeBarButtonsToRemove:[],
+    toImageButtonOptions:{format:'png',filename:document.getElementById('sensor-name')?.value||'nc_sensor',height:500,width:1400,scale:2}
+  });
+}
+
+const avg=a=>a.reduce((s,v)=>s+v,0)/a.length;
+// STDEV.P (모표준편차, 엑셀 STDEV.P 동일)
+const sd=a=>{const m=avg(a);return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length);};
+// ── Baseline 수분농도 모달 ────────────────────────────────────────
+let _sairPendingY = null;
+
+function openSairModal(selY){
+  _sairPendingY = selY;
+  const curTemp = parseFloat(document.getElementById('temp-input').value)||25;
+  const curRh   = parseFloat(document.getElementById('rh-input').value)||50;
+  document.getElementById('sair-temp').value = curTemp;
+  document.getElementById('sair-rh').value   = curRh;
+  // 이전 값 있으면 그대로 유지, 없으면 env 기준
+  if(state.sairH2oPpm != null){
+    document.getElementById('sair-ppm-direct').value = state.sairH2oPpm;
+  }
+  // 부제목에 현재 가스 표시
+  const balGas = document.getElementById('balance-gas').value || '';
+  const sub = document.getElementById('sair-modal-sub');
+  if(sub) sub.textContent = `${balGas} — 이 구간의 수분 농도를 입력하세요`;
+  sairCalcPpm();
+  sairTab('rh');
+  document.getElementById('sair-modal').style.display = 'flex';
+}
+
+function sairTab(tab){
+  const isRh = tab === 'rh';
+  document.getElementById('sair-panel-rh').style.display  = isRh ? 'flex' : 'none';
+  document.getElementById('sair-panel-ppm').style.display = isRh ? 'none'  : 'flex';
+  const activeStyle   = 'flex:1;padding:7px;border-radius:8px;border:1.5px solid #7c3aed;background:#ede9fe;color:#7c3aed;font-size:12px;font-weight:700;cursor:pointer';
+  const inactiveStyle = 'flex:1;padding:7px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer';
+  document.getElementById('sair-tab-rh').style.cssText  = isRh ? activeStyle : inactiveStyle;
+  document.getElementById('sair-tab-ppm').style.cssText = isRh ? inactiveStyle : activeStyle;
+  document.getElementById('sair-modal')._activeTab = tab;
+}
+
+function sairCalcPpm(){
+  const t  = parseFloat(document.getElementById('sair-temp').value)||25;
+  const rh = parseFloat(document.getElementById('sair-rh').value)||50;
+  const Ps = 6.1121 * Math.exp((18.678 - t/234.5) * (t/(257.14+t)));
+  const ppm = Math.round((rh/100) * (Ps/1013.25) * 1e6);
+  document.getElementById('sair-ppm-preview').textContent = ppm.toLocaleString('ko-KR');
+  document.getElementById('sair-modal')._calcPpm = ppm;
+}
+
+function sairModalCancel(){
+  document.getElementById('sair-modal').style.display = 'none';
+  _sairPendingY = null;
+  // 선택 취소 — 베이스라인 초기화
+  state.baseline = {x:[],y:[],range:null};
+  updateSelectionInfo();
+  if(chartInitialized) updateChartOverlays();
+}
+
+function sairModalConfirm(){
+  if(!_sairPendingY) return;
+  const modal  = document.getElementById('sair-modal');
+  const tab    = modal._activeTab || 'rh';
+  const h2oPpm = tab === 'ppm'
+    ? (parseInt(document.getElementById('sair-ppm-direct').value)||0)
+    : (modal._calcPpm || 0);
+  state.sairH2oPpm = h2oPpm;
+  modal.style.display = 'none';
+  calculateBaseline(_sairPendingY, h2oPpm);
+  _sairPendingY = null;
+}
+
+function calculateBaseline(selY, h2oPpm){
+  const r0   = Math.max(...selY);
+  const absN = sd(selY);
+  const relN = absN / r0;
+  state.metrics.r0       = r0;
+  state.metrics.absNoise = absN;
+  state.metrics.noise    = relN;
+  setMetric('metric-r0','rc-r0', fmtV(r0,'Ω'));
+  setMetric('metric-noise','rc-noise', relN.toExponential(3));
+  const h2oStr = (h2oPpm != null) ? ` · H₂O: ${h2oPpm.toLocaleString()} ppm` : '';
+  document.getElementById('rp-baseline-badge').textContent=`Baseline: n=${selY.length}, R₀(max)=${fmtV(r0,'Ω')}, σ/R₀=${relN.toExponential(3)}${h2oStr}`;
+  document.getElementById('rp-baseline-badge').style.color='var(--green)';
+  setStep(3);
+  updateSaveBtn();
+  recalcK();
+}
+function calculateReaction(selY, concOverride){
+  if(state.metrics.r0===null){showNotification('먼저 Baseline 구간을 선택하세요','error');return;}
+  const r0   = state.metrics.r0;
+  const rMax = Math.max(...selY);
+  const deltaR = rMax - r0;
+  state.metrics.dr = deltaR / r0;
+  setStep(4);
+  renderReactionMetrics();
+  updateSaveBtn();
+}
+function recalcK(){
+  renderReactionMetrics();
+}
+document.getElementById('gas-conc').addEventListener('input',recalcK);
+function renderReactionMetrics(){
+  const container = document.getElementById('reaction-metrics-container');
+  if(!container) return;
+  const r0 = state.metrics.r0;
+  const noise = state.metrics.noise;
+  if(!state.reactions.length){
+    container.innerHTML = '<div style="color:var(--text-sm);font-size:12px;padding:8px">Reaction 구간을 드래그로 선택하세요</div>';
+    return;
+  }
+  container.innerHTML = state.reactions.map((rxn, i) => {
+    const rMax = Math.max(...rxn.y);
+    const dr = r0!=null ? (rMax - r0) / r0 : null;
+    const k  = (dr!=null && rxn.conc>0) ? dr / rxn.conc : null;
+    const lod = (k&&noise&&k>0) ? 3*noise/k : null;
+    const loq = lod!=null ? lod*10/3 : null;
+    const drStr  = dr!=null  ? dr.toExponential(3)  : '─';
+    const kStr   = k!=null   ? k.toExponential(3)   : '─';
+    const lodStr = lod!=null ? lod.toFixed(2)+' ppm': '─';
+    const loqStr = loq!=null ? loq.toFixed(2)+' ppm': '─';
+    const rStr   = fmtV(rMax,'Ω');
+    const drAbs  = r0!=null ? fmtV(rMax-r0,'Ω') : '─';
+    return `<div class="reaction-metric-card">
+      <div class="reaction-metric-card-header">
+        ⚡ Reaction #${i+1} — <span style="color:var(--text)">${rxn.gasType}</span>
+        <span style="font-size:11px;font-weight:400;color:var(--text-sm)">${rxn.conc} ppm · n=${rxn.x.length}</span>
+        <button onclick="removeReaction('${rxn.id}')" style="margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text-sm);font-size:13px;padding:0 4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-sm)'">✕</button>
+      </div>
+      <div class="result-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="result-cell">
+          <div class="rc-label">🟡 ΔR / R₀</div>
+          <div class="rc-val amber ${dr!=null?'':'empty'}">${drStr}</div>
+          <div class="rc-sub">R(max) = ${rStr} / ΔR = ${drAbs}</div>
+        </div>
+        <div class="result-cell">
+          <div class="rc-label">🟢 감도 k</div>
+          <div class="rc-val green ${k!=null?'':'empty'}">${kStr} /ppm</div>
+          <div class="rc-sub">ΔR/R₀ ÷ 농도</div>
+        </div>
+        <div class="result-cell">
+          <div class="rc-label">LOD</div>
+          <div class="rc-val ${lod!=null?'':'empty'}">${lodStr}</div>
+          <div class="rc-sub">3 × (σ/R₀) / k</div>
+        </div>
+        <div class="result-cell">
+          <div class="rc-label">LOQ</div>
+          <div class="rc-val ${loq!=null?'':'empty'}">${loqStr}</div>
+          <div class="rc-sub">10 × (σ/R₀) / k</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  // 마지막 반응 기준으로 상태 업데이트 (호환성)
+  const last = state.reactions[state.reactions.length-1];
+  const rMaxL = Math.max(...last.y);
+  state.metrics.dr = r0!=null ? (rMaxL-r0)/r0 : null;
+  const kL = (state.metrics.dr!=null && last.conc>0) ? state.metrics.dr/last.conc : null;
+  state.metrics.k = kL;
+}
+function sensitivityLabel(k){
+  if(!k||k===0)return'─';
+  if(k<0)return'재평가';
+  const exp=Math.floor(Math.log10(Math.abs(k)));
+  const sup={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  return '10'+String(exp).split('').map(c=>sup[c]||c).join('');
+}
+function sensitivityLabel(k){
+  if(!k||k===0)return'─';
+  if(k<0)return'재평가';
+  const exp=Math.floor(Math.log10(Math.abs(k)));
+  const sup={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  return '10'+String(exp).split('').map(c=>sup[c]||c).join('');
+}
+function fmtV(v,u){if(v===null||isNaN(v))return'─';if(Math.abs(v)>=1e6)return(v/1e6).toFixed(3)+' M'+u;if(Math.abs(v)>=1e3)return(v/1e3).toFixed(3)+' k'+u;return v.toFixed(2)+' '+u;}
+
+// MODE
+function setMode(mode){
+  state.mode=mode;
+  document.getElementById('btn-baseline').className='mode-btn'+(mode==='baseline'?' active-baseline':'');
+  document.getElementById('btn-reaction').className='mode-btn'+(mode==='reaction'?' active-reaction':'');
+  if(mode==='baseline')setStep(2); else setStep(3);
+  showNotification(mode==='baseline'?'🟢 Baseline 구간 선택 모드 → 그래프 드래그':'🟡 Reaction 구간 선택 모드 → 그래프 드래그','success');
+}
+function toggleCorrection(){
+  if(!state.driftCorrection&&state.baseline.x.length<2){showNotification('먼저 Baseline 구간을 선택하세요','error');return;}
+  state.driftCorrection=!state.driftCorrection;
+  const btn=document.getElementById('btn-correction');
+  btn.textContent=`드리프트 보정: ${state.driftCorrection?'ON':'OFF'}`;
+  btn.classList.toggle('on',state.driftCorrection);
+  if(chartInitialized)updateChartOverlays(); else renderChart();
+  showNotification(`드리프트 보정 ${state.driftCorrection?'활성화':'비활성화'}`,'success');
+}
+function renderReactionList(){
+  const el=document.getElementById('reaction-list');
+  if(el){
+    if(!state.reactions.length){el.innerHTML='';} 
+    else {
+      el.innerHTML=state.reactions.map((r,i)=>`
+        <div style="display:flex;align-items:center;gap:6px;background:var(--bg-light);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px">
+          <span style="color:var(--amber);font-weight:700">⚡ #${i+1}</span>
+          <span style="flex:1;color:var(--text)">${r.gasType} <b>${r.conc}ppm</b></span>
+          <span style="color:var(--text-sm)">n=${r.x.length}</span>
+        </div>`).join('');
+    }
+  }
+  renderReactionMetrics();
+}
+function removeReaction(rid){
+  state.reactions=state.reactions.filter(r=>String(r.id)!==String(rid));
+  if(state.reactions.length>0){
+    const last=state.reactions[state.reactions.length-1];
+    state.reaction={x:last.x,y:last.y,range:last.range};
+    calculateReaction(last.y,last.conc);
+  } else {
+    state.reaction={x:[],y:[],range:null};
+    resetMetrics();
+  }
+  renderReactionList();
+  updateSelectionInfo();
+  updateSaveBtn();
+  if(chartInitialized)updateChartOverlays();
+}
+function updateSelectionInfo(){
+  const el=document.getElementById('selection-info');let html='';
+  if(state.baseline.range){const[x0,x1]=state.baseline.range;html+=`<span class="sel-badge baseline">🟢 Baseline (n=${state.baseline.x.length})</span>`;}
+  if(state.reactions.length){html+=`<span class="sel-badge reaction">⚡ Reaction ${state.reactions.length}개 선택됨</span>`;}
+  el.innerHTML=html||'<span class="sel-badge empty">그래프에서 영역을 드래그하여 선택</span>';
+}
+
+// SAVE / EXPORT
+function saveResult(){
+  const m=state.metrics;
+  if(m.r0===null){showNotification('저장할 Baseline 데이터가 없습니다','error');return;}
+  if(!state.reactions.length){showNotification('Reaction 구간을 하나 이상 선택하세요','error');return;}
+  const sensorId=document.getElementById('sensor-id').value.trim()||'─';
+  const sensorName=document.getElementById('sensor-name').value.trim()||'─';
+  const material=document.getElementById('material-select').value||'Unknown';
+  const balanceGas=document.getElementById('balance-gas').value;
+  const tempVal=parseFloat(document.getElementById('temp-input').value)||0;
+  const rhVal=parseFloat(document.getElementById('rh-input').value)||0;
+  const Ps=6.1121*Math.exp((18.678-tempVal/234.5)*(tempVal/(257.14+tempVal)));
+  const h2oPpm=Math.round((rhVal/100)*(Ps/1013.25)*1e6);
+  const injStartRaw=document.getElementById('inj-start').value;
+  const injStopRaw=document.getElementById('inj-stop').value;
+  const absNoise=m.absNoise||null;
+  const noiseRel=m.noise||null;
+  // 각 reaction 구간별로 저장
+  state.reactions.forEach(rxn=>{
+    const{gasType,conc,range,y:selY}=rxn;
+    const rMax2=Math.max(...selY);
+    const dr2=(rMax2-m.r0)/m.r0;
+    const deltaR2=dr2*m.r0;
+    const deltaRperC2=conc>0?deltaR2/conc:null;
+    const k2=conc>0?dr2/conc:null;
+    const lod2=(k2&&noiseRel)?3*noiseRel/k2:null;
+    const injStart=injStartRaw?injStartRaw.replace('T',' '):'─';
+    const injStop=injStopRaw?injStopRaw.replace('T',' '):'─';
+    state.resultCount++;
+    state.results.push({
+      id:state.resultCount,sensorId,sensorName,material,balanceGas,
+      gasType,conc,injStart,injStop,temp:tempVal,rh:rhVal,h2oPpm:state.sairH2oPpm??h2oPpm,
+      r0:m.r0,rMax:m.r0+deltaR2,deltaR:deltaR2,dr:dr2,
+      deltaRperC:deltaRperC2,k:k2,absNoise,noise:noiseRel,lod:lod2,loq:lod2?lod2*10/3:null,
+      _chartRange:[...range],
+      timestamp:new Date().toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
+    });
+  });
+  renderTable();
+  if(chartInitialized)updateChartOverlays();
+  setStep(5);
+  showNotification(`${state.reactions.length}개 구간 저장 완료 · ${sensorName} · ${material}`,'success');
+}
+function renderTable(){
+  const tbody=document.getElementById('results-tbody');
+  if(!state.results.length){tbody.innerHTML='<tr><td colspan="23" style="text-align:center;color:var(--text-sm);padding:32px;font-size:13px">아직 저장된 결과가 없습니다 · Baseline과 Reaction 구간을 선택한 후 [결과 저장]을 클릭하세요</td></tr>';return;}
+  tbody.innerHTML=state.results.map(r=>`<tr>
+    <td><span class="tag tag-blue">#${r.id}</span></td>
+    <td style="font-weight:600;color:var(--primary)">${r.sensorId||'─'}</td>
+    <td style="font-weight:600">${r.sensorName||'─'}</td>
+    <td><span class="tag tag-purple">${r.material}</span></td>
+    <td style="color:var(--text-sm)">${r.injStart}</td>
+    <td style="color:var(--text-sm)">${r.injStop}</td>
+    <td><span class="tag tag-gray">${r.balanceGas||'─'}</span></td>
+    <td><span class="tag tag-amber">${r.gasType}</span></td>
+    <td>${r.conc.toFixed(1)}</td>
+    <td>${r.r0!=null?fmtV(r.r0,'Ω'):'─'}</td>
+    <td>${r.rMax!=null?fmtV(r.rMax,'Ω'):'─'}</td>
+    <td>${r.deltaR!=null?r.deltaR.toFixed(4):'─'}</td>
+    <td>${r.dr!=null?r.dr.toExponential(4):'─'}</td>
+    <td>${r.deltaRperC!=null?r.deltaRperC.toFixed(4):'─'}</td>
+    <td>${r.k!=null?r.k.toExponential(4):'─'}</td>
+    <td>${r.k!=null?sensitivityLabel(r.k):'─'}</td>
+    <td>${r.absNoise!=null?r.absNoise.toFixed(4):'─'}</td>
+    <td>${r.noise!=null?r.noise.toExponential(4):'─'}</td>
+    <td>${r.noise!=null?r.noise.toFixed(6):'─'}</td>
+    <td>${r.lod!=null?r.lod.toFixed(4):'─'}</td>
+    <td style="color:var(--text-sm);font-size:11px">${r.timestamp}</td>
+    <td><button onclick="deleteResult(${r.id})" style="background:none;border:none;cursor:pointer;color:var(--text-sm);font-size:15px;padding:2px 6px;border-radius:4px;transition:all 0.15s" onmouseover="this.style.color='var(--red)';this.style.background='var(--red-lt)'" onmouseout="this.style.color='var(--text-sm)';this.style.background='none'" title="삭제">✕</button></td>
+  </tr>`).join('');
+}
+function copyChartToClipboard(){
+  const btn = document.getElementById('btn-copy-chart');
+  btn.textContent = '⏳ 캡처 중...';
+  btn.disabled = true;
+  const el = document.getElementById('plotly-chart');
+  html2canvas(el, {scale:2, useCORS:true, backgroundColor:'#ffffff'}).then(canvas=>{
+    canvas.toBlob(blob=>{
+      try {
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(()=>{
+          showNotification('그래프가 클립보드에 복사됐습니다 · Ctrl+V로 붙여넣기','success');
+        }).catch(()=>{
+          // 클립보드 권한 없으면 PNG 다운로드로 대체
+          const a=document.createElement('a');
+          a.href=canvas.toDataURL('image/png');
+          a.download=(document.getElementById('sensor-name')?.value||'nc_sensor')+'_chart.png';
+          a.click();
+          showNotification('클립보드 권한 없음 · PNG로 저장됩니다','error');
+        });
+      } catch(e) {
+        showNotification('이 브라우저는 클립보드 복사를 지원하지 않습니다','error');
+      }
+      btn.textContent = '📋 그래프 클립보드 복사';
+      btn.disabled = false;
+    }, 'image/png');
+  });
+}
+function captureFullResult(){
+  const btn = document.getElementById('btn-capture-full');
+  btn.textContent = '⏳ 캡처 중...';
+  btn.disabled = true;
+
+  // 캡처 대상: 차트 + 결과 패널 (.chart-wrap)
+  const el = document.querySelector('.chart-wrap');
+  if (!el) {
+    showNotification('캡처할 영역을 찾을 수 없습니다','error');
+    btn.textContent = '📸 차트+결과 캡처 저장';
+    btn.disabled = false;
+    return;
+  }
+
+  // 센서명 기반 파일명
+  const sensorName = document.getElementById('sensor-name')?.value || 'nc_sensor';
+  const gasType    = document.getElementById('gas-type')?.value || 'gas';
+  const conc       = document.getElementById('conc')?.value || '';
+  const ts         = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+  const filename   = `${sensorName}_${gasType}${conc?'_'+conc+'ppm':''}_${ts}.png`;
+
+  html2canvas(el, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    onclone: (doc) => {
+      // 복제된 문서에서 차트 영역 배경 보정
+      const wrap = doc.querySelector('.chart-wrap');
+      if (wrap) wrap.style.background = '#ffffff';
+    }
+  }).then(canvas => {
+    // PNG 다운로드 (항상)
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = filename;
+    a.click();
+
+    // 추가로 클립보드 복사 시도
+    canvas.toBlob(blob => {
+      try {
+        navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(() => {
+          showNotification(`📸 저장 완료 · 클립보드에도 복사됨 — ${filename}`, 'success');
+        }).catch(() => {
+          showNotification(`📸 PNG 저장 완료 — ${filename}`, 'success');
+        });
+      } catch(e) {
+        showNotification(`📸 PNG 저장 완료 — ${filename}`, 'success');
+      }
+      btn.textContent = '📸 차트+결과 캡처 저장';
+      btn.disabled = false;
+    }, 'image/png');
+  }).catch(err => {
+    showNotification('캡처 실패: ' + err.message, 'error');
+    btn.textContent = '📸 차트+결과 캡처 저장';
+    btn.disabled = false;
+  });
+}
+
+function copyResultsToClipboard(){
+  if(!state.results.length){showNotification('복사할 결과가 없습니다','error');return;}
+  const h=['Sensor_ID','Sensor_name','Polymer','injection_start_time','injection_stop_time','Balance_Gas','injection_substance','Gas.Conc[ppm]','R0[Ω]','R[Ω]','ΔR[Ω]','ΔR/R0','ΔR/C[Ω/ppm]','k','Sensitivity(ppm⁻¹)','ΔR_noise','Noise(ΔR_noise/R0)','Noise','LOD[ppm]'];
+  const rows=state.results.map(r=>[
+    r.sensorId||'─', r.sensorName||'─', r.material,
+    r.injStart, r.injStop, r.balanceGas||'─', r.gasType,
+    r.conc,
+    r.r0?.toFixed(6)??'', r.rMax?.toFixed(6)??'', r.deltaR?.toFixed(6)??'',
+    r.dr?.toExponential(6)??'', r.deltaRperC?.toFixed(6)??'',
+    r.k?.toExponential(6)??'', r.k!=null?sensitivityLabel(r.k):'',
+    r.absNoise?.toFixed(6)??'', r.noise?.toExponential(6)??'',
+    r.noise?.toFixed(6)??'',
+    r.lod?.toFixed(6)??''
+  ]);
+  // 탭 구분 텍스트 → 엑셀 Ctrl+V 바로 붙여넣기 가능
+  const tsv=rows.map(r=>r.map(v=>String(v??'').replace(/\t/g,' ')).join('\t')).join('\n');
+  navigator.clipboard.writeText(tsv).then(()=>{
+    showNotification(`✅ ${state.results.length}행 복사 완료 — 엑셀에서 Ctrl+V 하세요!`,'success');
+  }).catch(()=>{
+    // fallback: textarea 방식
+    const ta=document.createElement('textarea');
+    ta.value=tsv; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showNotification(`✅ ${state.results.length}행 복사 완료 — 엑셀에서 Ctrl+V 하세요!`,'success');
+  });
+}
+function exportCSV(){
+  if(!state.results.length){showNotification('내보낼 결과가 없습니다','error');return;}
+  const h=['Sensor_ID','Sensor_name','Polymer','injection_start_time','injection_stop_time','Balance_Gas','injection_substance','Gas.Conc[ppm]','R0[Ω]','R[Ω]','ΔR[Ω]','ΔR/R0','ΔR/C[Ω/ppm]','k','Sensitivity(ppm⁻¹)','ΔR_noise','Noise(ΔR_noise/R0)','Noise','LOD[ppm]'];
+  const rows=state.results.map(r=>[
+    r.sensorId||'─', r.sensorName||'─', r.material,
+    r.injStart, r.injStop, r.balanceGas||'─', r.gasType,
+    r.conc,
+    r.r0?.toFixed(6)??'', r.rMax?.toFixed(6)??'', r.deltaR?.toFixed(6)??'',
+    r.dr?.toExponential(6)??'', r.deltaRperC?.toFixed(6)??'',
+    r.k?.toExponential(6)??'', r.k!=null?sensitivityLabel(r.k):'',
+    r.absNoise?.toFixed(6)??'', r.noise?.toExponential(6)??'',
+    r.noise?.toFixed(6)??'',
+    r.lod?.toFixed(6)??''
+  ]);
+  const csv=[h,...rows].map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`nc_sensor_${Date.now()}.csv`;a.click();
+  showNotification('CSV 내보내기 완료','success');
+}
+function clearAll(){
+  state.data={x:[],y:[]};state.baseline={x:[],y:[],range:null};state.reaction={x:[],y:[],range:null};state.reactions=[];state.sairH2oPpm=null;
+  state.mode=null;document.getElementById('raw-input').value='';
+  document.getElementById('btn-baseline').className='mode-btn';
+  document.getElementById('btn-reaction').className='mode-btn';
+  renderReactionList();
+  resetMetrics();updateSelectionInfo();chartInitialized=false;Plotly.purge('plotly-chart');renderEmptyChart();
+  showNotification('데이터 초기화 완료','success');
+}
+function deleteResult(id){
+  state.results=state.results.filter(r=>r.id!==id);
+  renderTable();
+  if(chartInitialized)updateChartOverlays();
+  showNotification('결과 삭제 완료','success');
+}
+function clearResults(){state.results=[];state.resultCount=0;renderTable();showNotification('결과 데이터 초기화 완료','success');}
+function resetMetrics(){
+  state.metrics={r0:null,noise:null,dr:null,k:null,lod:null,loq:null};
+  const rmc=document.getElementById('reaction-metrics-container');
+  if(rmc)rmc.innerHTML='<div style="color:var(--text-sm);font-size:12px;padding:8px">Reaction 구간을 드래그로 선택하세요</div>';
+  ['metric-r0','metric-noise'].forEach(id=>{
+    const el=document.getElementById(id);if(el){el.textContent='─';el.classList.add('empty');}
+  });
+  const rb=document.getElementById('rp-baseline-badge');
+  const rr=document.getElementById('rp-reaction-badge');
+  if(rb){rb.textContent='Baseline: 미선택';rb.style.color='';}
+  if(rr){rr.textContent='Reaction: 미선택';rr.style.color='';}
+  setStep(1);
+  updateSaveBtn();
+}
+
+let notifTimer;
+function showNotification(msg,type='info'){
+  const el=document.getElementById('notification');
+  el.textContent=msg;el.className=`show ${type}`;
+  clearTimeout(notifTimer);notifTimer=setTimeout(()=>{el.className='';},3000);
+}
+
+renderEmptyChart();
+renderTable();
+
+// ── 키보드 단축키 ──────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // 입력 필드에 포커스 중이면 무시
+  const tag = document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if(e.key==='b'||e.key==='B') { setMode('baseline'); }
+  if(e.key==='r'||e.key==='R') { setMode('reaction'); }
+  if(e.key==='s'||e.key==='S') { saveResult(); }
+  if((e.key==='z'||e.key==='Z') && !e.ctrlKey && !e.metaKey) { undoLastReaction(); }
+  if((e.ctrlKey||e.metaKey) && e.key==='z') { undoLastReaction(); }
+});
+
+// ── Undo: 마지막 reaction 취소 (베이스라인 포함) ──────────────────
+const _undoStack = [];
+const _origPushReaction = null;
+
+function undoLastReaction(){
+  if(state.reactions.length > 0){
+    const removed = state.reactions.pop();
+    _undoStack.push({type:'reaction', data: removed});
+    renderReactionList();
+    updateSelectionInfo();
+    if(chartInitialized) updateChartOverlays();
+    showNotification(`↩ Reaction #${removed.id%1000} 취소됨 (Z로 Undo)`, 'info');
+  } else if(state.baseline.range){
+    _undoStack.push({type:'baseline', data:{...state.baseline}});
+    state.baseline={x:[],y:[],range:null};
+    state.metrics.r0=null; state.metrics.noise=null; state.metrics.absNoise=null;
+    const rb=document.getElementById('rp-baseline-badge');
+    if(rb){rb.textContent='Baseline: 미선택';rb.style.color='';}
+    setMetric('metric-r0','rc-r0','─');
+    setMetric('metric-noise','rc-noise','─');
+    renderReactionMetrics();
+    updateSelectionInfo();
+    if(chartInitialized) updateChartOverlays();
+    showNotification('↩ Baseline 취소됨', 'info');
+  } else {
+    showNotification('취소할 항목이 없습니다', 'error');
+  }
+}
+
+// ── 저장 버튼 상태 업데이트 ──────────────────────────────────────
+function updateSaveBtn(){
+  const btn = document.getElementById('btn-save');
+  if(!btn) return;
+  const ready = state.metrics.r0!==null && state.reactions.length>0;
+  btn.disabled = !ready;
+  btn.style.opacity = ready ? '1' : '0.45';
+  btn.style.cursor = ready ? 'pointer' : 'not-allowed';
+}
+
+// ── 결과 테이블 행 클릭 → 그래프 하이라이트 ─────────────────────
+function highlightResultRow(resultId){
+  const r = state.results.find(r=>r.id===resultId);
+  if(!r||!r._chartRange||!chartInitialized) return;
+  // 이전 하이라이트 제거
+  state._highlight = r._chartRange;
+  updateChartOverlays();
+  // 그래프로 스크롤
+  document.getElementById('plotly-chart').scrollIntoView({behavior:'smooth', block:'center'});
+  showNotification(`#${resultId} ${r.gasType} ${r.conc}ppm 구간 표시`, 'info');
+}
+
+// ══════════════════════════════════════════════
+// TAB SWITCHER
+// ══════════════════════════════════════════════
+function switchTab(tab) {
+  ['sensor','voc','solvent','polymer'].forEach(t => {
+    document.getElementById('content-'+t).classList.toggle('active', t===tab);
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    const sn = document.getElementById('snav-'+t);
+    if(sn) sn.classList.toggle('active', t===tab);
+  });
+  if(tab==='voc') { renderChemTable(); calcVOC(); syncVocMolVol(); }
+  if(tab==='solvent') renderSolventTable();
+  if(tab==='polymer') renderPolymerTable();
+}
+
+// ══════════════════════════════════════════════
+// VOC PPM 계산기 데이터
+// ══════════════════════════════════════════════
+let chemDB = [
+  {name:"물 (Water)",      mw:18.015, density:1.000, purity:100.0, bp:"100.0 °C", flam:"없음",        tox:"거의 없음",                                                         note:"전기 기구 접촉 주의",
+   twa:null, stel:null, idlh:null, oelNote:"노출기준 미설정 (비독성)"},
+  {name:"에탄올 (Ethanol)", mw:46.070, density:0.789, purity:95.0,  bp:"78.4 °C",  flam:"높음",         tox:"눈 자극, 장기 노출 시 간 손상",                                       note:"화기 엄금",
+   twa:1000, stel:null, idlh:3300, oelNote:"STEL 미설정. 독성 낮아 TWA 기준 관대. 화재 위험 주의."},
+  {name:"벤젠 (Benzene)",  mw:78.110, density:0.870, purity:99.5,  bp:"80.1 °C",  flam:"매우 높음",    tox:"1군 발암성, 조혈독성(백혈병), 흡입/피부 위험",                          note:"장시간 노출 절대 금지, 국소배기장치 필수",
+   twa:0.5,  stel:2.5,  idlh:500,  oelNote:"발암성 1A — TWA 0.5 ppm 극도로 엄격. 국소배기 필수."},
+  {name:"THF (테트라하이드로퓨란)", mw:72.110, density:0.890, purity:99.5, bp:"66.0 °C", flam:"매우 높음", tox:"심한 눈 자극, 발암성 의심",                                note:"과산화물 형성(폭발 위험)",
+   twa:200,  stel:250,  idlh:2000, oelNote:"과산화물 축적 주의. IDLH는 폭발 하한(LEL 2%) 10% 기준."},
+  {name:"톨루엔 (Toluene)", mw:92.140, density:0.870, purity:99.5, bp:"110.6 °C", flam:"높음",         tox:"생식 독성, 신경계 손상, 흡입 주의",                                     note:"유기용매 중 독성 강함",
+   twa:50,   stel:100,  idlh:500,  oelNote:"Skin 흡수 주의. 색각 이상·자연유산 위험. ACGIH TLV 20 ppm (한국 50 ppm)."},
+  {name:"n-헥산 (n-Hexane)", mw:86.180, density:0.660, purity:95.0, bp:"69.0 °C", flam:"매우 높음",   tox:"말초 신경 장애, 생식 독성",                                             note:"장기 노출 시 마비 증상",
+   twa:50,   stel:null, idlh:1100, oelNote:"STEL 미설정. 대사산물 2,5-헥산다이온이 신경독성 유발. 장기 누적 노출이 핵심 위험."},
+  {name:"암모니아수 25% (NH₄OH)", mw:17.031, density:0.910, purity:25.0, bp:"37~38 °C", flam:"비인화성 액체 (기화 NH₃는 폭발 범위 존재)", tox:"금속 부식성, 급성 독성(경구), 피부 부식 — GHS 3종", note:"후드 작업 필수 · 강한 자극성 냄새 · 수생환경 유해 · 기화 NH₃ TWA 25 ppm",
+   twa:25,   stel:35,   idlh:300,  oelNote:"기화된 NH₃ 가스 기준. 자극적 냄새로 조기 감지 가능. 고농도 시 폐수종 위험.",
+   _extra:{mwLabel:"NH₃ 기준 분자량",mwGas:17.031,mwSolution:35.050,densityNote:"20°C 기준, 물보다 가벼움",purityNote:"순도 25.0% min. (고농도 시약)",bpNote:"상온에서 휘발성 매우 강함",ghsPic:"부식성 · 급성독성 · 환경유해",special:"액체 주입량 계산 시 NH₃ 가스 분자량(17.031) 및 순도(25%) 적용"}},
+];
+let selectedChemIdx = 0;
+
+function renderChemTable() {
+  const tbody = document.getElementById('chem-tbody');
+  tbody.innerHTML = chemDB.map((c,i) => `<tr style="${i===selectedChemIdx?'background:var(--primary-lt)':''}">
+    <td><input type="radio" name="chem-select" ${i===selectedChemIdx?'checked':''} onchange="selectChem(${i})"></td>
+    <td style="font-weight:600">${c.name}</td>
+    <td>${c.mw}</td><td>${c.density}</td><td>${c.purity}</td>
+    <td>${c.bp}</td><td>${c.flam}</td><td style="max-width:200px;font-size:11px">${c.tox}</td>
+    <td style="max-width:180px;font-size:11px">${c.note}</td>
+    <td><button onclick="deleteChem(${i})" style="background:none;border:none;cursor:pointer;color:var(--text-sm);font-size:14px;padding:2px 5px;border-radius:4px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-sm)'" title="삭제">✕</button></td>
+  </tr>`).join('');
+}
+
+function selectChem(i) {
+  selectedChemIdx = i;
+  renderChemTable();
+  calcVOC();
+  updateSafetyInfo();
+}
+
+function deleteChem(i) {
+  chemDB.splice(i,1);
+  if(selectedChemIdx >= chemDB.length) selectedChemIdx = Math.max(0, chemDB.length-1);
+  renderChemTable(); calcVOC(); updateSafetyInfo();
+}
+
+function toggleAddForm() {
+  const f = document.getElementById('add-chem-form');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+}
+
+function addChem() {
+  const name=document.getElementById('new-name').value.trim();
+  if(!name){showNotification('성분명을 입력하세요','error');return;}
+  chemDB.push({
+    name, mw:parseFloat(document.getElementById('new-mw').value)||0,
+    density:parseFloat(document.getElementById('new-density').value)||0,
+    purity:parseFloat(document.getElementById('new-purity').value)||100,
+    bp:document.getElementById('new-bp').value||'─',
+    flam:document.getElementById('new-flam').value||'─',
+    tox:document.getElementById('new-tox').value||'─',
+    note:document.getElementById('new-note').value||'─',
+  });
+  ['new-name','new-mw','new-density','new-bp','new-flam','new-tox','new-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('new-purity').value='100';
+  renderChemTable(); showNotification(`${name} 추가 완료`,'success');
+  document.getElementById('add-chem-form').style.display='none';
+}
+
+function syncVocMolVol() {
+  const T = parseFloat(document.getElementById('lab-temp').value)||25;
+  const Vm = 22.414*(273.15+T)/273.15;
+  const el = document.getElementById('voc-molvol');
+  if(el) el.textContent = Vm.toFixed(3)+' L/mol';
+}
+
+function calcVOC() {
+  syncVocMolVol();
+  if(!chemDB.length) return;
+  const c = chemDB[selectedChemIdx];
+  const T = parseFloat(document.getElementById('lab-temp').value)||25;
+  const Vm = 22.414*(273.15+T)/273.15;
+  const airVol = parseFloat(document.getElementById('air-vol').value)||12;
+  const targetPpm = parseFloat(document.getElementById('target-ppm').value)||1000;
+  // 암모니아수: NH₃ 가스 분자량(17.031) 기준, 순도 25% 적용
+  const mwEff = (c._extra && c._extra.mwGas) ? c._extra.mwGas : c.mw;
+  const reqUl = (targetPpm * mwEff * airVol) / (Vm * c.density * (c.purity/100) * 1000);
+
+  const labelSuffix = c._extra ? ' (암모니아수 용액)' : '';
+  document.getElementById('voc-result-label').textContent = `필요한 ${c.name} 주입량${labelSuffix}`;
+  document.getElementById('voc-result-val').textContent = reqUl.toFixed(2);
+  document.getElementById('voc-formula-display').textContent =
+    `(${targetPpm}ppm × ${mwEff}g/mol [NH₃] × ${airVol}L) ÷ (${Vm.toFixed(3)} × ${c.density} × ${(c.purity/100).toFixed(3)} × 1000)`;
+
+  // 도구 추천
+  const toolBox = document.getElementById('voc-tool-box');
+  let toolHTML = '';
+  if(reqUl <= 10) {
+    toolBox.className = 'tool-box amber';
+    toolHTML = `<h4>💉 마이크로 실린지 (10μL)</h4>
+      <div class="tool-val">${reqUl.toFixed(2)} μL</div>
+      <p style="font-size:12px;margin-top:8px;color:var(--text-md)">실린지 눈금을 <b>${reqUl.toFixed(2)}</b>에 맞춰 1회 주입</p>`;
+  } else if(reqUl <= 100) {
+    toolBox.className = 'tool-box green';
+    toolHTML = `<h4>🔬 마이크로 피펫 (100μL)</h4>
+      <div class="tool-val">${reqUl.toFixed(1)} μL × 1회</div>
+      <p style="font-size:12px;margin-top:8px;color:var(--text-md)">피펫 세팅: <b>${reqUl.toFixed(1)} μL</b>, 1회 주입</p>`;
+  } else {
+    const n = Math.ceil(reqUl/100);
+    const perTime = reqUl/n;
+    toolBox.className = 'tool-box green';
+    toolHTML = `<h4>🔬 마이크로 피펫 (100μL) — 분할 주입</h4>
+      <div class="tool-val">${perTime.toFixed(1)} μL × ${n}회</div>
+      <p style="font-size:12px;margin-top:8px;color:var(--text-md)">회당 <b>${perTime.toFixed(1)} μL</b>, 총 <b>${n}번</b> 주입</p>`;
+  }
+  document.getElementById('voc-tool-content').innerHTML = toolHTML;
+  updateSafetyInfo();
+}
+
+function updateSafetyInfo() {
+  if(!chemDB.length) return;
+  const c = chemDB[selectedChemIdx];
+  const hasFlam = c.flam.includes('높음');
+  const isNH3 = c._extra != null;
+
+  if(isNH3) {
+    const x = c._extra;
+    document.getElementById('voc-safety-props').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:6px">
+        <div><b>🧪 분자량 (NH₃ 가스)</b><br><span style="color:var(--primary);font-weight:600">${x.mwGas} g/mol</span></div>
+        <div><b>🧪 분자량 (NH₄OH 용액)</b><br><span style="color:var(--text-md)">${x.mwSolution} g/mol</span></div>
+        <div><b>⚖️ 밀도</b><br><span style="color:var(--text-md)">${c.density} g/cm³ &nbsp;<small style="color:var(--text-sm)">${x.densityNote}</small></span></div>
+        <div><b>🔬 순도</b><br><span style="color:var(--text-md)">${c.purity}% &nbsp;<small style="color:var(--text-sm)">${x.purityNote}</small></span></div>
+        <div><b>🌡️ 끓는점</b><br><span style="color:var(--text-md)">${c.bp} &nbsp;<small style="color:var(--text-sm)">${x.bpNote}</small></span></div>
+        <div><b>🔥 인화성</b><br><span style="color:var(--green)">${c.flam}</span></div>
+        <div style="grid-column:1/-1"><b>☣️ 독성/위험성 (GHS)</b><br><span style="color:var(--red)">${c.tox}</span></div>
+        <div style="grid-column:1/-1;padding:8px 10px;background:var(--amber-lt);border-radius:7px;border-left:3px solid var(--amber)">
+          <b style="color:var(--amber)">⚠️ 계산 주의사항</b><br>
+          <span style="font-size:11px;color:var(--text-md)">${x.special}</span>
+        </div>
+      </div>`;
+    document.getElementById('voc-safety-note').textContent = c.note;
+  } else {
+    document.getElementById('voc-safety-props').innerHTML =
+      `<b>🌡️ 끓는점:</b> ${c.bp}<br><b>🔥 인화성:</b> <span style="color:${hasFlam?'var(--red)':'var(--green)'}">${c.flam}</span><br><b>☣️ 독성/위험성:</b> ${c.tox}`;
+    document.getElementById('voc-safety-note').textContent = c.note||'─';
+  }
+
+  // ── 노출기준 카드 렌더 ──
+  const oelCard = document.getElementById('voc-oel-card');
+  const oelContent = document.getElementById('voc-oel-content');
+  const targetPpm = parseFloat(document.getElementById('target-ppm').value)||1000;
+
+  if(c.twa == null && c.stel == null && c.idlh == null) {
+    oelCard.style.display = 'none';
+  } else {
+    oelCard.style.display = 'block';
+    // 위험도 레벨 계산 (목표 농도 vs TWA 기준)
+    let lvClass='lv1', lvText='', lvIcon='';
+    if(c.twa != null) {
+      const ratio = targetPpm / c.twa;
+      if(ratio <= 0.5)      { lvClass='lv1'; lvIcon='🟢'; lvText=`목표농도(${targetPpm} ppm)는 TWA의 ${(ratio*100).toFixed(0)}% — 안전 범위`; }
+      else if(ratio <= 1.0) { lvClass='lv2'; lvIcon='🟡'; lvText=`목표농도(${targetPpm} ppm)는 TWA의 ${(ratio*100).toFixed(0)}% — TWA 근접, 주의 필요`; }
+      else if(ratio <= 3.0) { lvClass='lv3'; lvIcon='🟠'; lvText=`목표농도(${targetPpm} ppm)는 TWA의 ${(ratio*100).toFixed(0)}% — TWA 초과! 실험 시 보호구 착용`; }
+      else                  { lvClass='lv4'; lvIcon='🔴'; lvText=`목표농도(${targetPpm} ppm)는 TWA의 ${(ratio*100).toFixed(0)}% — 고위험! 밀폐/국소배기 필수`; }
+    }
+
+    // 바 너비 계산 (IDLH 기준 정규화, 최대 100%)
+    const ref = c.idlh || (c.twa * 20) || 1000;
+    const twaPct  = c.twa  ? Math.min(c.twa  / ref * 100, 100) : 0;
+    const stelPct = c.stel ? Math.min(c.stel / ref * 100, 100) : 0;
+    const idlhPct = 100;
+    const targetPct = Math.min(targetPpm / ref * 100, 100);
+
+    const barClass = (ppm) => {
+      if(!c.twa) return 'safe';
+      const r = ppm / c.twa;
+      return r <= 1 ? 'safe' : r <= 3 ? 'warn' : 'danger';
+    };
+    const valClass = (ppm) => barClass(ppm);
+
+    oelContent.innerHTML = `
+      <div class="oel-row">
+        <div class="oel-label">TWA <small style="font-weight:400;color:var(--text-sm)">(8h)</small></div>
+        <div class="oel-bar-wrap"><div class="oel-bar safe" style="width:${twaPct}%"></div></div>
+        <div class="oel-val safe">${c.twa != null ? c.twa+' ppm' : '미설정'}</div>
+      </div>
+      ${c.stel != null ? `
+      <div class="oel-row">
+        <div class="oel-label">STEL <small style="font-weight:400;color:var(--text-sm)">(15min)</small></div>
+        <div class="oel-bar-wrap"><div class="oel-bar warn" style="width:${stelPct}%"></div></div>
+        <div class="oel-val warn">${c.stel} ppm</div>
+      </div>` : `
+      <div class="oel-row">
+        <div class="oel-label">STEL <small style="font-weight:400;color:var(--text-sm)">(15min)</small></div>
+        <div class="oel-bar-wrap"><div style="font-size:11px;color:var(--text-sm);line-height:10px">미설정 (TWA×3 이하 단기 관리)</div></div>
+        <div class="oel-val" style="color:var(--text-sm)">─</div>
+      </div>`}
+      ${c.idlh != null ? `
+      <div class="oel-row">
+        <div class="oel-label">IDLH <small style="font-weight:400;color:var(--text-sm)">(즉시위험)</small></div>
+        <div class="oel-bar-wrap"><div class="oel-bar danger" style="width:${idlhPct}%"></div></div>
+        <div class="oel-val danger">${c.idlh} ppm</div>
+      </div>` : ''}
+      <div class="oel-row" style="margin-top:4px;padding-top:8px;border-top:1px dashed var(--border)">
+        <div class="oel-label" style="color:var(--primary);font-weight:700">목표 농도</div>
+        <div class="oel-bar-wrap"><div class="oel-bar ${barClass(targetPpm)}" style="width:${targetPct}%"></div></div>
+        <div class="oel-val ${valClass(targetPpm)}">${targetPpm} ppm</div>
+      </div>
+      <div class="oel-badge-row">
+        ${c.twa  != null ? `<span class="oel-badge twa">TWA ${c.twa} ppm</span>` : '<span class="oel-badge none">TWA 미설정</span>'}
+        ${c.stel != null ? `<span class="oel-badge stel">STEL ${c.stel} ppm</span>` : '<span class="oel-badge none">STEL 미설정</span>'}
+        ${c.idlh != null ? `<span class="oel-badge idlh">IDLH ${c.idlh} ppm</span>` : ''}
+      </div>
+      ${c.twa != null ? `<div class="danger-level ${lvClass}">${lvIcon} ${lvText}</div>` : ''}
+      ${c.oelNote ? `<div class="target-ratio-note">📋 ${c.oelNote}</div>` : ''}
+    `;
+  }
+
+  const msdsEl = document.getElementById('voc-msds-link');
+  msdsEl.innerHTML = `<a href="https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(c.name)}" target="_blank"
+    style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--primary-lt);color:var(--primary);border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid var(--primary)">
+    🔍 ${c.name} 상세 MSDS 검색 (PubChem) ↗</a>`;
+}
+
+// also recalc VOC when lab temp changes
+const _origUpdateLabTemp = updateLabTemp;
+function updateLabTemp() {
+  _origUpdateLabTemp();
+  syncVocMolVol();
+  calcVOC();
+}
+
+// ══════════════════════════════════════════════
+// 용매 DB 데이터 & 렌더
+// ══════════════════════════════════════════════
+const solventDB = [
+  {name:"1,2-DCB",dd:19.6,dp:6.0,dh:3.5,dt:20.8,diel:9.9,hlp:19.6,hlb:"5~7",bp:180.0,vp:0.2,visc:1.32,polar:"약극성~중극성",surf:37.0,surfStr:"중간"},
+  {name:"Acetone",dd:15.5,dp:10.4,dh:7.0,dt:19.9,diel:20.7,hlp:19.7,hlb:"10~12",bp:56.0,vp:231.0,visc:0.31,polar:"고극성",surf:23.7,surfStr:"낮음"},
+  {name:"Anisole",dd:17.8,dp:5.7,dh:5.9,dt:19.6,diel:4.3,hlp:19.1,hlb:"5~7",bp:154.0,vp:0.4,visc:1.07,polar:"약극성",surf:34.3,surfStr:"중간"},
+  {name:"Benzyl acetate",dd:18.4,dp:5.3,dh:6.6,dt:20.3,diel:5.0,hlp:19.4,hlb:"6~8",bp:206.0,vp:0.3,visc:1.80,polar:"약극성",surf:36.0,surfStr:"중간"},
+  {name:"Benzyl alcohol",dd:18.4,dp:6.3,dh:13.7,dt:23.8,diel:13.1,hlp:22.3,hlb:"9~11",bp:205.0,vp:0.1,visc:5.47,polar:"고극성",surf:39.0,surfStr:"강함"},
+  {name:"Chlorobenzene",dd:19.0,dp:4.3,dh:2.0,dt:19.6,diel:5.6,hlp:19.2,hlb:"5~7",bp:132.0,vp:11.8,visc:0.80,polar:"약극성",surf:33.6,surfStr:"중간"},
+  {name:"Chloroform",dd:17.8,dp:3.1,dh:5.7,dt:18.9,diel:4.8,hlp:17.8,hlb:"2~4",bp:61.0,vp:197.0,visc:0.54,polar:"중간극성",surf:27.1,surfStr:"낮음"},
+  {name:"Cyclohexane",dd:18.0,dp:0.0,dh:0.0,dt:18.0,diel:2.0,hlp:16.8,hlb:"1~3",bp:81.0,vp:97.0,visc:0.89,polar:"비극성",surf:25.5,surfStr:"낮음"},
+  {name:"DCM",dd:17.0,dp:7.3,dh:7.1,dt:19.8,diel:8.9,hlp:20.2,hlb:"6~8",bp:40.0,vp:435.0,visc:0.41,polar:"중간극성",surf:27.2,surfStr:"낮음"},
+  {name:"DMF",dd:18.0,dp:8.8,dh:7.1,dt:21.3,diel:36.7,hlp:24.9,hlb:"12~14",bp:153.0,vp:3.8,visc:0.80,polar:"고극성",surf:36.4,surfStr:"중간"},
+  {name:"DMSO",dd:18.5,dp:14.5,dh:19.0,dt:30.2,diel:46.7,hlp:26.7,hlb:"14~16",bp:189.0,vp:0.6,visc:1.99,polar:"초극성",surf:43.5,surfStr:"강함"},
+  {name:"Ethyl acetate",dd:18.2,dp:5.3,dh:7.2,dt:20.3,diel:6.0,hlp:18.2,hlb:"7~9",bp:77.1,vp:73.0,visc:0.45,polar:"고극성",surf:23.9,surfStr:"낮음"},
+  {name:"Ethanol",dd:15.6,dp:16.0,dh:19.0,dt:29.3,diel:24.3,hlp:26.0,hlb:"14~16",bp:78.0,vp:44.0,visc:1.07,polar:"중간극성",surf:22.3,surfStr:"낮음"},
+  {name:"Formamide",dd:17.1,dp:19.0,dh:26.1,dt:36.5,diel:109.0,hlp:36.6,hlb:"18~20",bp:210.0,vp:0.1,visc:3.30,polar:"초극성",surf:58.2,surfStr:"강함"},
+  {name:"GBL",dd:19.0,dp:16.6,dh:7.4,dt:26.3,diel:39.0,hlp:22.8,hlb:"12~14",bp:204.0,vp:1.5,visc:2.00,polar:"고극성",surf:43.8,surfStr:"강함"},
+  {name:"IPA",dd:15.8,dp:6.1,dh:16.4,dt:23.6,diel:18.3,hlp:23.5,hlb:"12~14",bp:82.0,vp:44.0,visc:2.10,polar:"고극성",surf:21.7,surfStr:"낮음"},
+  {name:"MEK",dd:15.3,dp:9.0,dh:4.8,dt:18.4,diel:18.5,hlp:19.3,hlb:"8~10",bp:79.6,vp:88.0,visc:0.43,polar:"중간극성",surf:24.6,surfStr:"낮음"},
+  {name:"Methanol",dd:14.6,dp:9.2,dh:16.0,dt:23.5,diel:32.6,hlp:29.6,hlb:"16~18",bp:64.0,vp:96.0,visc:0.54,polar:"고극성",surf:22.6,surfStr:"낮음"},
+  {name:"NMP",dd:18.0,dp:12.3,dh:7.2,dt:23.0,diel:32.2,hlp:22.9,hlb:"11~13",bp:202.0,vp:0.3,visc:1.65,polar:"고극성",surf:40.7,surfStr:"강함"},
+  {name:"THF",dd:16.8,dp:5.7,dh:8.0,dt:19.5,diel:7.6,hlp:19.4,hlb:"7~9",bp:66.0,vp:143.0,visc:0.46,polar:"중간극성",surf:26.4,surfStr:"낮음"},
+  {name:"Toluene",dd:18.0,dp:1.4,dh:2.0,dt:18.2,diel:2.4,hlp:18.0,hlb:"3~5",bp:111.0,vp:28.4,visc:0.59,polar:"비극성",surf:28.4,surfStr:"낮음"},
+  {name:"Water",dd:15.5,dp:16.0,dh:42.3,dt:47.8,diel:78.5,hlp:23.5,hlb:"18~20",bp:100.0,vp:23.8,visc:0.89,polar:"초극성",surf:72.8,surfStr:"강함"},
+  {name:"Xylene",dd:18.0,dp:2.5,dh:0.0,dt:18.2,diel:2.3,hlp:17.8,hlb:"2~4",bp:144.0,vp:6.6,visc:0.76,polar:"비극성",surf:28.4,surfStr:"낮음"},
+];
+
+const solventWaterDB = {
+  "Formamide":{hydro:"매우 친수성",misc:"완전 혼화",note:"극히 친수성, 수소결합 수용 & 제공 가능"},
+  "DMSO":{hydro:"매우 친수성",misc:"완전 혼화",note:"극성 높고 물과 잘 섞임"},
+  "DMF":{hydro:"매우 친수성",misc:"완전 혼화",note:"친수성 강함"},
+  "Methanol":{hydro:"매우 친수성",misc:"완전 혼화",note:"친수성 알코올 계열"},
+  "Ethanol":{hydro:"매우 친수성",misc:"완전 혼화",note:"에탄올, 친수성 강함"},
+  "IPA":{hydro:"매우 친수성",misc:"완전 혼화",note:"물과 잘 섞이며 수소결합도 가능"},
+  "Acetone":{hydro:"매우 친수성",misc:"완전 혼화",note:"케톤류, 물에 잘 섞임"},
+  "MEK":{hydro:"매우 친수성",misc:"완전 혼화",note:"Acetone보다 끓는점 높음"},
+  "NMP":{hydro:"매우 친수성",misc:"완전 혼화",note:"고극성 아마이드 계열"},
+  "GBL":{hydro:"매우 친수성",misc:"완전 혼화",note:"수소결합 수용 가능, 물에 잘 섞임"},
+  "THF":{hydro:"중간 친수성",misc:"완전 혼화",note:"물과 혼화되지만 소수성기도 있음"},
+  "Ethyl acetate":{hydro:"중간 친수성",misc:"약간 혼화",note:"물과 제한적 혼화, 향이 강함"},
+  "Chloroform":{hydro:"중간 친수성",misc:"제한적",note:"물과 부분 혼화, 밀도 높음"},
+  "DCM":{hydro:"중간 친수성",misc:"제한적",note:"소수성보다 중간 정도"},
+  "Anisole":{hydro:"중간 친수성",misc:"미혼화",note:"약간 극성이나 전체적으로 소수성"},
+  "Chlorobenzene":{hydro:"중간 친수성",misc:"미혼화",note:"극성 낮고 소수성 성향"},
+  "Benzyl alcohol":{hydro:"중간 친수성",misc:"제한적 혼화",note:"알코올이지만 분자량 크고 극성 낮음"},
+  "Benzyl acetate":{hydro:"소수성",misc:"거의 혼화 안 됨",note:"에스터류, 물과 잘 섞이지 않음"},
+  "Xylene":{hydro:"소수성",misc:"미혼화",note:"방향족, 완전 소수성"},
+  "Toluene":{hydro:"소수성",misc:"미혼화",note:"방향족 탄화수소, 매우 소수성"},
+  "Cyclohexane":{hydro:"소수성",misc:"미혼화",note:"완전 소수성, 극성 거의 없음"},
+  "1,2-DCB":{hydro:"소수성",misc:"미혼화",note:"방향족 할로겐화물, 물과 거의 섞이지 않음"},
+  "Water":{hydro:"기준(100%)",misc:"─",note:"친수성 기준물질"},
+};
+
+function polarBadge(p) {
+  const cls = p.includes('초')||p.includes('매우')?'polar-high':p.includes('고')?'polar-high':p.includes('중간')?'polar-mid':p.includes('약')||p.includes('비')?'polar-low':'polar-none';
+  return `<span class="polar-badge ${cls}">${p}</span>`;
+}
+
+function renderSolventTable(data) {
+  data = data || solventDB;
+  const tbody = document.getElementById('solvent-tbody');
+  tbody.innerHTML = data.map(s => `<tr>
+    <td style="font-weight:600">${s.name}</td>
+    <td>${s.dd}</td><td>${s.dp}</td><td>${s.dh}</td><td><b>${s.dt}</b></td>
+    <td>${s.diel}</td><td>${s.bp}</td><td>${s.vp}</td><td>${s.visc}</td>
+    <td>${polarBadge(s.polar)}</td><td>${s.surf} (${s.surfStr})</td>
+    <td><button onclick="showSolventDetail('${s.name}')" class="btn btn-sm" style="font-size:11px;padding:4px 8px">상세</button></td>
+  </tr>`).join('');
+}
+
+function filterSolvents() {
+  const q = document.getElementById('solvent-search').value.toLowerCase();
+  const pf = document.getElementById('solvent-polar-filter').value;
+  const filtered = solventDB.filter(s =>
+    (!q || s.name.toLowerCase().includes(q)) &&
+    (!pf || s.polar === pf)
+  );
+  renderSolventTable(filtered);
+}
+
+function showSolventDetail(name) {
+  const s = solventDB.find(x=>x.name===name);
+  if(!s) return;
+  const det = document.getElementById('solvent-detail');
+  det.style.display = 'block';
+  document.getElementById('solvent-detail-title').textContent = '🧊 ' + s.name + ' 상세 정보';
+  document.getElementById('sd-dt').textContent = s.dt;
+  document.getElementById('sd-diel').textContent = s.diel;
+  document.getElementById('sd-bp').textContent = s.bp + ' °C';
+  document.getElementById('sd-visc').textContent = s.visc;
+  document.getElementById('sd-dd').textContent = s.dd;
+  document.getElementById('sd-dp').textContent = s.dp;
+  document.getElementById('sd-dh').textContent = s.dh;
+  document.getElementById('sd-hlp').textContent = s.hlp;
+  document.getElementById('sd-hlb').textContent = s.hlb;
+  const w = solventWaterDB[s.name];
+  document.getElementById('sd-water-info').innerHTML = w
+    ? `<b>친수성 등급:</b> ${w.hydro}<br><b>물과의 혼화성:</b> ${w.misc}<br><b>표면 장력:</b> ${s.surf} mN/m (${s.surfStr})<br><b>비고:</b> ${w.note}`
+    : '데이터 없음';
+  det.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ══════════════════════════════════════════════
+// 고분자 DB 데이터 & 렌더
+// ══════════════════════════════════════════════
+const polymerDB = [
+  {name:"EPDM",polar:"비극성",hbond:"없음",solvents:"Toluene, Xylene, Cyclohexane",props:"내후성, 내열성, 내화학성 우수"},
+  {name:"Poly(4-vinylphenol-co-MMA)",polar:"극성",hbond:"있음 (OH기)",solvents:"DMF, DMSO, NMP, THF, IPA",props:"친수성, 수소결합으로 우수한 접착력"},
+  {name:"Poly(ethylene-co-acrylic acid)",polar:"극성",hbond:"있음 (COOH기)",solvents:"IPA, Ethanol, DMF, THF",props:"높은 접착성, 친수성, 우수한 유연성"},
+  {name:"Poly(styrene-co-maleic acid)",polar:"극성",hbond:"있음 (COOH기)",solvents:"DMF, DMSO, THF, Acetone",props:"내열성, 투명성 우수, 반응성 높음"},
+  {name:"PVP",polar:"극성",hbond:"있음 (아마이드기)",solvents:"Water, Ethanol, IPA, DMF",props:"친수성, 생체적합성, 필름 형성 우수"},
+  {name:"Poly(2-vinyl pyridine)",polar:"중간~강한 극성",hbond:"약함",solvents:"DMF, NMP, EtOH, MeOH, DMSO",props:"센서, 전해질, 기능성 코팅"},
+  {name:"Poly(4-vinyl pyridine)",polar:"강한 극성",hbond:"강함",solvents:"DMF, NMP, MeOH, DMSO",props:"센서, 박막 소자, 습도 감응소자"},
+  {name:"PVB",polar:"극성",hbond:"있음 (OH기)",solvents:"Ethanol, IPA, THF",props:"투명도, 우수한 접착성 및 내충격성"},
+  {name:"Cyanoethyl hydroxyethyl cellulose",polar:"극성",hbond:"있음 (OH, CN기)",solvents:"Water, DMF, DMSO, Formamide",props:"친수성, 우수한 접착력과 필름 형성"},
+  {name:"Ethyl cellulose",polar:"약극성~비극성",hbond:"약함 (에테르기)",solvents:"Ethanol, Acetone, THF",props:"우수한 내수성, 유연한 필름 형성"},
+  {name:"Poly(vinyl benzyl chloride)",polar:"약극성~비극성",hbond:"약함",solvents:"Toluene, THF, Chloroform, DCM",props:"투명도, 유연성 및 우수한 내화학성. Toluene 최고 감응 (방향족 π-π 상호작용), THF 2순위"},
+  {name:"PVBC",polar:"약극성~비극성",hbond:"약함",solvents:"Toluene, THF, Chloroform, DCM",props:"Poly(vinyl benzyl chloride) 약칭. Toluene 최고 감응 (벤질기↔방향족 π-π), THF 2순위. 비극성 VOC 감응 우수"},
+  {name:"Poly(ethylene-co-vinyl acetate)",polar:"약극성",hbond:"약함",solvents:"Toluene, Xylene, Ethyl acetate, THF",props:"박막 코팅, 방습 포장재, 가스 감응"},
+  {name:"Poly(epichlorohydrin) PECH",polar:"약극성",hbond:"약함 (할로겐기)",solvents:"THF, Chloroform, Toluene",props:"내화학성, 저온에서 탄성 및 접착성"},
+  {name:"Poly(epichlorohydrin-co-EO)",polar:"약극성",hbond:"약함 (에테르기)",solvents:"THF, DCM, Chloroform",props:"탄성체, 저온 유연성 및 가공성 우수"},
+  {name:"Polystyrene (PS)",polar:"비극성",hbond:"없음",solvents:"Toluene, Xylene, THF, Chloroform",props:"우수한 전기 특성, 투명성, 내수성"},
+  {name:"Polyethylene Oxide (PEO)",polar:"극성",hbond:"있음 (에테르기)",solvents:"Water, Methanol, Acetonitrile",props:"친수성, 우수한 이온전도성 및 생체적합성"},
+  {name:"PMMA",polar:"약극성~비극성",hbond:"약함 (에스터기)",solvents:"Acetone, THF, Chloroform",props:"높은 투명성, 우수한 기계적 강도"},
+  {name:"Poly(Styrene-Maleic Anhydride ester)",polar:"약극성~비극성",hbond:"약함 (에스터기)",solvents:"THF, DMF, DMSO, Chloroform",props:"필름 형성력 우수, 접착성, 내화학성"},
+  {name:"PSMAH",polar:"극성",hbond:"있음 (COOH기, 무수말레산기)",solvents:"DMF, DMSO, THF, Acetone",props:"반응성 높음, 내열성 우수, 표면 개질 및 센서 응용"},
+  {name:"PEAA",polar:"극성",hbond:"있음 (COOH기)",solvents:"IPA, Ethanol, DMF, THF",props:"높은 접착성, 친수성, 가스 감응 우수, 유연한 필름 형성"},
+  {name:"PEVA",polar:"약극성",hbond:"약함 (에스터기)",solvents:"Toluene, Xylene, Ethyl acetate, THF",props:"유연성 우수, 저온 특성, 가스 투과성 및 박막 코팅 적합"},
+];
+
+function renderPolymerTable(data) {
+  data = data || polymerDB;
+  const tbody = document.getElementById('polymer-tbody');
+  tbody.innerHTML = data.map(p => `<tr>
+    <td style="font-weight:600;min-width:160px">${p.name}</td>
+    <td>${polarBadge(p.polar)}</td>
+    <td style="font-size:11px">${p.hbond}</td>
+    <td style="font-size:11px;color:var(--primary)">${p.solvents}</td>
+    <td style="font-size:11px;max-width:200px">${p.props}</td>
+    <td><button onclick="showPolymerDetail('${p.name.replace(/'/g,"\\'")}') " class="btn btn-sm" style="font-size:11px;padding:4px 8px">상세</button></td>
+  </tr>`).join('');
+}
+
+function filterPolymers() {
+  const q = document.getElementById('polymer-search').value.toLowerCase();
+  const pf = document.getElementById('polymer-polar-filter').value;
+  const filtered = polymerDB.filter(p =>
+    (!q || p.name.toLowerCase().includes(q)) &&
+    (!pf || p.polar === pf)
+  );
+  renderPolymerTable(filtered);
+}
+
+function showPolymerDetail(name) {
+  const p = polymerDB.find(x=>x.name===name);
+  if(!p) return;
+  const det = document.getElementById('polymer-detail');
+  det.style.display='block';
+  document.getElementById('polymer-detail-title').textContent = '🧪 ' + p.name;
+  document.getElementById('pd-polar').textContent = p.polar;
+  document.getElementById('pd-hbond').textContent = p.hbond;
+  document.getElementById('pd-props').textContent = p.props;
+
+  // 추천 용매 연동
+  const recList = p.solvents.split(',').map(s=>s.trim());
+  const matched = solventDB.filter(s => recList.some(r => s.name.toLowerCase()===r.toLowerCase()));
+  const stbody = document.getElementById('pd-solvent-tbody');
+  if(matched.length) {
+    stbody.innerHTML = matched.map(s=>`<tr>
+      <td style="font-weight:600">${s.name}</td>
+      <td>${s.bp} °C</td><td>${s.dt}</td><td>${s.diel}</td>
+      <td>${polarBadge(s.polar)}</td>
+    </tr>`).join('');
+  } else {
+    stbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-sm);padding:16px">매칭 데이터 없음</td></tr>`;
+  }
+  det.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// Init VOC tab on first load
+renderChemTable();
+
+// ══════════════════════════════════════════════════════════════
+</script>
+
+<!-- Baseline 수분농도 입력 모달 -->
+<div id="sair-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.45);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px 32px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.2);border:1px solid #e2e8f0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <span style="font-size:24px">💧</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#1e293b">Baseline 수분 농도 설정</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px" id="sair-modal-sub">Baseline 구간의 수분 조건을 입력하세요</div>
+      </div>
+    </div>
+    <!-- 탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button id="sair-tab-rh"  onclick="sairTab('rh')"  style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #7c3aed;background:#ede9fe;color:#7c3aed;font-size:12px;font-weight:700;cursor:pointer">🌡 온도 + RH</button>
+      <button id="sair-tab-ppm" onclick="sairTab('ppm')" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer">💧 ppm 직접 입력</button>
+    </div>
+    <!-- RH 패널 -->
+    <div id="sair-panel-rh" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px">온도 (°C)</div>
+          <input id="sair-temp" type="number" value="25" step="0.1"
+            style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box"
+            oninput="sairCalcPpm()">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px">상대습도 RH (%)</div>
+          <input id="sair-rh" type="number" value="50" step="0.1" min="0" max="100"
+            style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box"
+            oninput="sairCalcPpm()">
+        </div>
+      </div>
+      <div style="background:#f5f3ff;border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:#7c3aed;margin-bottom:2px">계산된 수분 농도</div>
+        <span id="sair-ppm-preview" style="font-size:26px;font-weight:800;color:#7c3aed">11,605</span>
+        <span style="font-size:13px;color:#7c3aed;font-weight:600"> ppm H₂O</span>
+      </div>
+    </div>
+    <!-- ppm 직접입력 패널 -->
+    <div id="sair-panel-ppm" style="display:none;flex-direction:column;gap:10px">
+      <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px">수분 농도 (ppm H₂O)</div>
+      <input id="sair-ppm-direct" type="number" placeholder="예: 11605"
+        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box">
+    </div>
+    <!-- 버튼 -->
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button onclick="sairModalCancel()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:13px;font-weight:600;cursor:pointer">취소</button>
+      <button onclick="sairModalConfirm()" style="flex:2;padding:10px;border-radius:8px;border:none;background:#7c3aed;color:#fff;font-size:14px;font-weight:700;cursor:pointer">✅ 적용</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
